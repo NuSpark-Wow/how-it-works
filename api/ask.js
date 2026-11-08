@@ -5,8 +5,8 @@
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const CHECK_MODEL = process.env.CLAUDE_CHECK_MODEL || "claude-haiku-5-5";
-// Diagrams use the stronger model for cleaner layouts. For faster (rougher) drawings, add BOARD_MODEL = claude-haiku-5-5 in Vercel settings.
-const BOARD_MODEL = process.env.BOARD_MODEL || "claude-sonnet-5-5";
+// Diagrams use the fast model, which the drawing step is tuned for. The layout rules in SYSTEM_BOARD keep labels inside boxes and off lines.
+const BOARD_MODEL = process.env.BOARD_MODEL || "claude-haiku-5-5";
 const HOURLY_LIMIT = 30;
 const hits = new Map();
 
