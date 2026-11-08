@@ -111,6 +111,8 @@ button{font-family:inherit;cursor:pointer}
 .card p{margin:0;font-size:16px;line-height:1.6}
 .terms div{margin:0 0 10px;font-size:15.5px;line-height:1.5}
 .terms b{color:var(--accent)}
+.fxcard b{font-family:'JetBrains Mono',monospace;color:var(--gold);font-weight:500;font-size:16px}
+.fxcard div{margin-bottom:12px}
 .img-card img{width:100%;max-height:280px;object-fit:contain;border-radius:10px;background:#0f151c;display:block}
 .credit{font-size:12px !important;color:var(--soft);margin-top:8px !important}
 .fact{border-left:4px solid var(--gold)}
@@ -207,6 +209,10 @@ button{font-family:inherit;cursor:pointer}
         <button id="vMan" class="on">🔊 Man</button>
         <button id="vWoman">🔊 Woman</button>
       </div>
+      <div class="toggle" role="group" aria-label="Voice speed">
+        <button id="sNormal" class="on">▶ Normal</button>
+        <button id="sSlow">🐢 Slow</button>
+      </div>
     </div>
   </div>
 
@@ -262,6 +268,7 @@ button{font-family:inherit;cursor:pointer}
     </div>
     <div class="side hide" id="side">
       <div class="card terms hide" id="termsCard"><h3>Key Words</h3><div id="terms"></div></div>
+      <div class="card terms fxcard hide" id="fxCard"><h3>Formulas Explained</h3><div id="fxList"></div></div>
       <div class="card img-card hide" id="imgCard"><h3>The real thing</h3><img id="img" alt=""><p class="credit" id="credit"></p></div>
       <div class="card fact hide" id="factCard"><h3>Didja Know?</h3><p id="fact"></p></div>
       <div class="card myth hide" id="mythCard"><h3>Common misconception</h3><p id="myth"></p></div>
@@ -375,6 +382,18 @@ function setVoicePref(p){
   $("vMan").classList.toggle("on", p === "man"); $("vWoman").classList.toggle("on", p === "woman");
   try { localStorage.setItem("lh_voice", p); } catch(e) {}
 }
+/* ---------- voice speed ---------- */
+let speedPref = "normal";
+try { if (localStorage.getItem("hiw_speed") === "slow") speedPref = "slow"; } catch(e) {}
+function setSpeed(p){
+  if (p !== speedPref) lastAudio = null;   // re-fetch the voice at the new speed
+  speedPref = p;
+  $("sNormal").classList.toggle("on", p === "normal"); $("sSlow").classList.toggle("on", p === "slow");
+  try { localStorage.setItem("hiw_speed", p); } catch(e) {}
+}
+$("sNormal").onclick = () => { setSpeed("normal"); unlock(); sayShort("Normal speed."); };
+$("sSlow").onclick = () => { setSpeed("slow"); unlock(); sayShort("Slower speed."); };
+setTimeout(() => setSpeed(speedPref), 0);
 $("vMan").onclick = () => { setVoicePref("man"); unlock(); sayShort("Welcome to How It Works."); };
 $("vWoman").onclick = () => { setVoicePref("woman"); unlock(); sayShort("Welcome to How It Works."); };
 
@@ -936,7 +955,19 @@ function renderLegend(list, formulas){
   }
   box.classList.remove("hide");
 }
+// Gathers every formula drawn on the screen into the "Formulas Explained" card
+function renderFormulas(){
+  const seen = new Set(), list = $("fxList"); list.innerHTML = "";
+  groups.forEach(g => (g._formulas || []).forEach(f => {
+    const k = String(f.formula || "").trim(); if (!k || seen.has(k)) return; seen.add(k);
+    const d = document.createElement("div"); const b = document.createElement("b"); b.textContent = k;
+    d.appendChild(b); d.appendChild(document.createElement("br")); d.appendChild(document.createTextNode(f.explanation || "")); list.appendChild(d);
+  }));
+  $("fxCard").classList.toggle("hide", !seen.size);
+  if (seen.size) $("side").classList.remove("hide");
+}
 function updateCtrls(){
+  renderFormulas();
   $("prev").disabled = shown <= 1; $("next").disabled = shown >= groups.length; $("replay").disabled = shown === 0;
   const real = groups.length && groups[0].dataset.title !== "";
   document.querySelectorAll("#views button").forEach((b, i) => { b.disabled = !real || i >= groups.length; b.classList.toggle("on", real && i === shown - 1); });
@@ -993,7 +1024,7 @@ async function prepareAudio(){
   lastAudio = null; lastProgress = 0;
   if (!voiceOff && ctx) {
     try {
-      const r = await fetch("/api/speak", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ text: speech, voice: voicePref }) });
+      const r = await fetch("/api/speak", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ text: speech, voice: voicePref, speed: speedPref }) });
       if (r.status === 501) voiceOff = true;
       else if (r.ok) {
         const d = await r.json();
@@ -1039,7 +1070,7 @@ function browserVoice(text){
   const v = pickVoice(); let started = false;
   chunks.forEach((c, idx) => {
     const u = new SpeechSynthesisUtterance(c.text);
-    if (v) u.voice = v; u.rate = 0.98; u.pitch = pitchFor(v, 1.0);
+    if (v) u.voice = v; u.rate = speedPref === "slow" ? 0.82 : 0.98; u.pitch = pitchFor(v, 1.0);
     u.onstart = () => { if (!started) { started = true; setSpeaking(true); onProgress(0); startEstimate(text.length, u.rate); } else if (!lastBoundary || Date.now() - lastBoundary > 1500) { estStart = Date.now() - c.start / (14.5 * u.rate) * 1000; } };
     u.onboundary = e => { lastBoundary = Date.now(); const ci = c.start + e.charIndex; highlight(ci); onProgress(ci / text.length); };
     if (idx === chunks.length - 1) u.onend = finish;
@@ -1055,7 +1086,7 @@ async function sayShort(text){
   try { speechSynthesis.cancel(); } catch(e) {}
   if (!voiceOff && ctx) {
     try {
-      const r = await fetch("/api/speak", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ text, voice: voicePref }) });
+      const r = await fetch("/api/speak", { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ text, voice: voicePref, speed: speedPref }) });
       if (r.status === 501) voiceOff = true;
       else if (r.ok) {
         const d = await r.json();
@@ -1072,7 +1103,7 @@ async function sayShort(text){
 }
 function browserShort(text){
   if (!("speechSynthesis" in window) || !text) return;
-  const u = new SpeechSynthesisUtterance(text); const v = pickVoice(); if (v) u.voice = v; u.rate = 0.98; u.pitch = pitchFor(v, 1.0);
+  const u = new SpeechSynthesisUtterance(text); const v = pickVoice(); if (v) u.voice = v; u.rate = speedPref === "slow" ? 0.82 : 0.98; u.pitch = pitchFor(v, 1.0);
   speechSynthesis.cancel(); speechSynthesis.speak(u);
 }
 if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = () => {};
