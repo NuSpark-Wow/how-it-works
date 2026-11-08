@@ -3,7 +3,7 @@
 // Optional: ELEVENLABS_VOICE_ID (Man) and ELEVENLABS_VOICE_ID_WOMAN (Woman) to swap in different voices
 // Only the lecturer's own words are sent here. No visitor audio ever reaches this server.
 
-const DEFAULT_MAN = "x8EpqJ1pKzP4vo35tTCm";   // David - Clear, Friendly Explainer
+const DEFAULT_MAN = "UPlXPHEQFgDFTFd0qJ9R";   // Charismatic Chris - warm, bright, expressive
 const DEFAULT_WOMAN = "W3Rk2MrllOWWYVX9H2B1"; // Instructional Marina - Warm & clear
 const cache = new Map(); // repeat answers don't cost twice (resets when the server sleeps)
 
@@ -45,7 +45,9 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         text,
         model_id: process.env.ELEVENLABS_MODEL || "eleven_flash_v2_5",
-        voice_settings: { stability: 0.6, similarity_boost: 0.8, style: 0.15, speed }
+        voice_settings: who === "man"
+          ? { stability: 0.38, similarity_boost: 0.8, style: 0.4, use_speaker_boost: true, speed }   // livelier, more expressive delivery
+          : { stability: 0.5, similarity_boost: 0.8, style: 0.25, use_speaker_boost: true, speed }
       })
     });
     if (!r.ok) return res.status(502).json({ error: "voice_failed" });
