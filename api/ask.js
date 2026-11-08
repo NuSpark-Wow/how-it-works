@@ -5,8 +5,8 @@
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const CHECK_MODEL = process.env.CLAUDE_CHECK_MODEL || "claude-haiku-5-5";
-// The drawing step uses the faster model. To switch back, add BOARD_MODEL = claude-sonnet-5-5 in Vercel settings.
-const BOARD_MODEL = process.env.BOARD_MODEL || "claude-haiku-5-5";
+// Diagrams use the stronger model for cleaner layouts. For faster (rougher) drawings, add BOARD_MODEL = claude-haiku-5-5 in Vercel settings.
+const BOARD_MODEL = process.env.BOARD_MODEL || "claude-sonnet-5-5";
 const HOURLY_LIMIT = 30;
 const hits = new Map();
 
@@ -29,8 +29,9 @@ const BREAK = {
 };
 
 const DEPTH = {
-  quick: `STYLE: PLAIN ENGLISH. 170-260 words total. Everyday words, no jargon; when a technical word is unavoidable, explain it in the same sentence. Use one familiar comparison. Still exactly the 4 sections. The screen gets exactly 4 simple diagrams.`,
-  full: `STYLE: DETAILED. 340-480 words total, exactly the 4 sections. Name the real parts and the real engineering, with key numbers where they help (voltages, speeds, sizes, temperatures). The screen gets exactly 4 diagrams.`
+  simple: `LEVEL: EXTRA SIMPLE. 200-280 words total, still exactly the 4 sections. No jargon at all: say it the way you'd explain it to a friend over coffee, using everyday comparisons. The screen gets exactly 4 simple diagrams with few labels.`,
+  quick: `LEVEL: EVERYDAY (for the average curious adult). 340-460 words total, exactly the 4 sections. Detailed but easy to follow: plain, friendly language and short sentences. Name the real parts, but every time a technical word appears, explain it right away in simple words. Use one familiar comparison in each section (like a kitchen, a car, or a garden hose). Use a number only when it helps the picture. The screen gets exactly 4 clear diagrams.`,
+  full: `LEVEL: TECH CURIOUS (for a tech-minded adult who wants the real engineering). 450-600 words total, exactly the 4 sections. Use the proper engineering terms (define each briefly the first time), real numbers and units (voltages, frequencies, pressures, speeds, efficiencies), how the parts interact, the design tradeoffs, and the limits. Still clear and well organized, never dense or academic. The screen gets exactly 4 detailed diagrams with more labels.`
 };
 
 const SYSTEM_LECTURE = `You are a brilliant, friendly engineer who explains how things work TODAY to a curious adult, the way a great museum guide or design engineer would. You are an AI explainer; if asked, say so honestly. (A separate artist draws the diagrams on screen; you write the words.)
@@ -51,12 +52,12 @@ THE EXPLANATION ("answer"): EXACTLY 4 sections, in this order, with these exact 
 1. "The short answer": what it does and the core idea in a few sentences. (Shown with a CUTAWAY view.)
 2. "Take it apart": the main parts and what each one does. (Shown with an EXPLODED view of the parts.)
 3. "Step by step": what happens, in order, from start to finish. Number the steps in words (first, second, then, finally). (Shown with a STEP SEQUENCE.)
-4. "Where you'll find it": where this same technology or principle shows up in everyday life today. (Shown with a WHERE-IT'S-USED map.)
+4. "Examples in the real world": 3-5 specific, named places where this same technology or principle is working today, each with a sentence on what it does there. (Shown with a REAL-WORLD EXAMPLES map.)
 Plain, engaging prose; no markdown, no bullet lists, no emojis (it is read aloud).
 
 OTHER FIELDS (lectures only):
-- "terms": 3-5 key parts or terms, each with a one-sentence plain definition.
-- "surprising": one surprising, true fact about how it works today (1-2 sentences).
+- "terms": 4-6 key words from the explanation (parts, terms, units), each with a one-sentence plain-English definition a curious teenager could follow.
+- "surprising": a "Didja know?" fact: one fun, surprising, true fact about how it works today (1-2 sentences). Do not start it with "Didja know".
 - "misconception": one common misconception and the truth (1-2 sentences), or "".
 - "image_query": 2-4 plain, literal search words for a real photo of the thing, or "" if a photo would not help.
 - "deeper": exactly 3 smart follow-up how-it-works questions.
@@ -73,9 +74,9 @@ THE 4 VIEWS, in this order:
 1. CUTAWAY: a cross-section or see-through view of the object or system with its insides visible and the key parts labeled with leader lines.
 2. TAKE IT APART: an exploded view: the main parts pulled apart along a line or arc, each one labeled, with dashed lines showing where they fit together.
 3. STEP BY STEP: a numbered sequence (3-6 steps) of boxes or small sketches joined by arrows, showing what happens in order. Number each step in a circle.
-4. WHERE YOU'LL FIND IT: the same principle in 3-5 everyday places today, drawn as simple outline icons (for example a car, a phone, a blender, a drone) around a center label, each with a short caption.
+4. EXAMPLES IN THE REAL WORLD: the same principle in 4-6 everyday places today. Each place is a simple recognizable outline ICON drawn with a few shapes (a car = body rect + 2 wheel circles; a phone = tall rounded rect + small circle; a drone = small body + 4 rotor circles; a washing machine = square + round door), never an empty box. Put the label under each icon. Arrange them in a ring around a center label, with short straight connector lines that stop 15px before each icon and the center.
 
-Each figure has a "title" that starts with the view name (for example "Cutaway: inside an EV motor", "Take it apart: the five main parts", "Step by step: from battery to wheels", "Where you'll find it: motors all around you"), a short "caption" (under 14 words), an "svg", and a "legend".
+Each figure has a "title" that starts with the view name (for example "Cutaway: inside an EV motor", "Take it apart: the five main parts", "Step by step: from battery to wheels", "Real-world examples: motors all around you"), a short "caption" (under 14 words), an "svg", and a "legend".
 LEGEND: list EVERY symbol, variable, unit abbreviation and math sign that appears in that figure's svg (for example V, A, kW, rpm, °C, +, −), each with a plain-English meaning. Use [] if there are none.
 FORMULAS: for EVERY formula written in that figure's svg, give the "formula" exactly as written and an "explanation" in 1-2 plain sentences. Use [] if there are none.
 Each svg is SVG ELEMENTS ONLY (no <svg> wrapper) on an 800 wide x 500 tall near-black monitor screen:
@@ -84,7 +85,11 @@ Each svg is SVG ELEMENTS ONLY (no <svg> wrapper) on an 800 wide x 500 tall near-
 - Colors only: #ffffff (white), #5eead4 (teal, main structure), #7dd3fc (sky blue, moving parts), #fbbf24 (amber, energy, motion and arrows), #f472b6 (pink, highlights), #a3e635 (lime, inputs and outputs). Mostly teal, white and sky blue. Fills, if any, use fill-opacity='0.18'.
 - Lines: stroke-width 2 to 4, stroke-linecap='round'. Dashed lines use stroke-dasharray='6 6'. Text: font-family='Inter' font-size 18 to 30, fill white or a color above; part labels in white.
 - Clean engineering style: crisp geometry, leader lines from labels to parts, arrows for flow and motion.
-- LAYOUT: plan positions first. Objects must not overlap; text never sits on a shape; leave 20px between things; keep inside x 20-780, y 20-480. Max 22 elements per figure. Each figure stands alone (the screen is cleared between figures).
+- TEXT SIZE MATH: at font-size 18, each character is about 10px wide (20px font: 11px). Any box holding text must be at least (characters x 10) + 28px wide. Prefer short labels (1-3 words). Never let text run past a box edge.
+- LINES NEVER CROSS TEXT: leader lines end 8px before the label starts; no line may pass through any label. Put labels in clear space to the right or left of the drawing, stacked with 34px between them.
+- STEP BY STEP layout: 3-6 steps in ONE clean left-to-right row (or 2 rows of 3, the second row also reading left to right). Each step: a numbered circle (r 18) above a box with a 1-3 word label, and a short caption line under the box. Straight arrows with small triangle arrowheads between boxes; arrows never cross boxes or circles.
+- CUTAWAY and TAKE IT APART: center the object on the left two-thirds; labels in a neat column on the right third (x 560-780), each with a leader line to its part.
+- LAYOUT: plan every position first. Objects must not overlap; text never sits on another shape's outline; leave 20px between things; keep inside x 20-780, y 20-480. Max 26 elements per figure. Each figure stands alone (the screen is cleared between figures).
 
 Always respond by calling the give_board tool.`;
 
@@ -94,7 +99,7 @@ const SYSTEM_OUTLINE = `You design short courses for curious adults about how te
 // and each finished figure is sent to the page right away.
 const STREAM_FORMAT = `OUTPUT FORMAT (IMPORTANT): plain text only, no JSON, no tools. Write each figure as its own block, in order, exactly like this:
 === STEP
-TITLE: Fig. 1: the figure title
+TITLE: Cutaway: the figure title
 CAPTION: the short caption
 SVG: all of this figure's svg elements on ONE line
 LEGEND: symbol | meaning ;; symbol | meaning
@@ -189,7 +194,7 @@ function parseBlock(block) {
     if (m) { key = m[1]; f[key] = m[2]; }
     else if (key && raw.trim()) f[key] += " " + raw.trim();
   }
-  return { title: f.TITLE.trim(), caption: f.CAPTION.trim(), svg: cleanSvg(f.SVG.trim()),
+  return { title: f.TITLE.trim().replace(/^fig(ure)?\.?\s*\d+\s*[:.-]\s*/i, ""), caption: f.CAPTION.trim(), svg: cleanSvg(f.SVG.trim()),
     legend: pairs(f.LEGEND, 20, 160, 10).map(([symbol, meaning]) => ({ symbol, meaning })),
     formulas: pairs(f.FORMULAS, 80, 400, 4).map(([formula, explanation]) => ({ formula, explanation })) };
 }
@@ -286,7 +291,7 @@ module.exports = async (req, res) => {
   const src = (isGet ? req.query : req.body) || {};
   const part = ["board", "outline"].includes(src.part) ? src.part : "lecture";
   const question = String(src.q || src.question || "").trim().slice(0, 300);
-  const depth = src.depth === "quick" ? "quick" : "full";
+  const depth = ["quick", "simple"].includes(src.depth) ? src.depth : "full";
   const context = isGet ? "" : String(src.context || "").slice(0, 200);
   const more = !isGet && src.more === true;
   const prev = isGet ? "" : String(src.prev || "").slice(0, 3000);
@@ -329,7 +334,7 @@ module.exports = async (req, res) => {
 
   if (part === "board") {
     if (paras.length) {
-      user += `\n\nThe lecture, section by section:\n${paras.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n\nDraw EXACTLY ${paras.length} figures, one per section, in the same order, using the 4 views in order (Cutaway, Take it apart, Step by step, Where you'll find it). Figure k must illustrate section k, so the screen changes as the narrator talks. Start each title with its view name.`;
+      user += `\n\nThe lecture, section by section:\n${paras.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n\nDraw EXACTLY ${paras.length} figures, one per section, in the same order, using the 4 views in order (Cutaway, Take it apart, Step by step, Real-world examples). Figure k must illustrate section k, so the screen changes as the narrator talks. Start each title with its view name.`;
     }
     return streamBoard(res, isGet, user, paras.length || 4, false);
   }
