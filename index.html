@@ -199,9 +199,9 @@ button{font-family:inherit;cursor:pointer}
   <div class="top">
     <div class="brand"><span class="dot"></span><div>How It Works<small>See how the things around you work today.</small></div></div>
     <div class="top-right">
-      <div class="toggle" role="group" aria-label="Explanation style">
-        <button id="dQuick">💡 Plain English<small>simple words</small></button>
-        <button id="dFull" class="on">⚙️ Detailed<small>the full engineering</small></button>
+      <div class="toggle" role="group" aria-label="Explanation level">
+        <button id="dQuick">💡 Everyday<small>easy to follow</small></button>
+        <button id="dFull">⚙️ Tech Curious<small>the real engineering</small></button>
       </div>
       <div class="toggle" role="group" aria-label="Choose a voice">
         <button id="vMan" class="on">🔊 Man</button>
@@ -234,7 +234,7 @@ button{font-family:inherit;cursor:pointer}
       <button data-v="0" disabled>Cutaway</button>
       <button data-v="1" disabled>Take it apart</button>
       <button data-v="2" disabled>Step by step</button>
-      <button data-v="3" disabled>Where you'll find it</button>
+      <button data-v="3" disabled>Real-world examples</button>
     </div>
     <div class="tray">
       <div class="caption" id="caption">Ask a question to begin the lecture.</div>
@@ -251,7 +251,7 @@ button{font-family:inherit;cursor:pointer}
   <div class="study">
     <div class="notes">
       <h2 id="title">Welcome to the lab</h2>
-      <div class="read" id="read"><p>Ask a question by voice or by typing. You'll get a clear explanation, read aloud, while the screen draws a cutaway, the parts, the steps, and where you'll find it today.</p></div>
+      <div class="read" id="read"><p>Ask a question by voice or by typing. You'll get a clear explanation, read aloud, while the screen draws a cutaway, the parts, the steps, and real-world examples.</p></div>
       <div class="playrow hide" id="playrow">
         <button class="btn" id="again">🔊 Hear it</button>
         <button class="btn hide" id="stop">⏹ Stop</button>
@@ -261,9 +261,9 @@ button{font-family:inherit;cursor:pointer}
       </div>
     </div>
     <div class="side hide" id="side">
-      <div class="card terms hide" id="termsCard"><h3>Key parts</h3><div id="terms"></div></div>
+      <div class="card terms hide" id="termsCard"><h3>Key Words</h3><div id="terms"></div></div>
       <div class="card img-card hide" id="imgCard"><h3>The real thing</h3><img id="img" alt=""><p class="credit" id="credit"></p></div>
-      <div class="card fact hide" id="factCard"><h3>Surprising fact</h3><p id="fact"></p></div>
+      <div class="card fact hide" id="factCard"><h3>Didja Know?</h3><p id="fact"></p></div>
       <div class="card myth hide" id="mythCard"><h3>Common misconception</h3><p id="myth"></p></div>
     </div>
   </div>
@@ -319,7 +319,7 @@ let groups = [], shown = 0, manual = false, lastProgress = 0, boardStart = 0, bo
 let words = [], speech = "";
 let shortNode = null, shortId = 0;
 let ctx = null, srcNode = null, lastAudio = null, raf = 0, voiceOff = false, speaking = false;
-let depth = "full", course = null;
+let depth = "quick", chosenLevel = "quick", course = null;
 function track(name, data){ try { window.va("event", { name, data }); } catch(e) {} }
 function toast(msg){ const el = $("toast"); el.textContent = msg; el.classList.add("on"); setTimeout(() => el.classList.remove("on"), 2200); }
 
@@ -348,7 +348,7 @@ function renderStarters(){
     const wrap = document.createElement("div"); wrap.className = "qs";
     const ql = document.createElement("div"); ql.className = "ql"; ql.textContent = "Starter questions · " + TOPICS[topicSel][0]; wrap.appendChild(ql);
     const row = document.createElement("div"); row.className = "qrow";
-    qs.forEach(q => { const b = document.createElement("button"); b.className = "qbtn"; b.textContent = q; b.onclick = () => { unlock(); $("q").value = q; ask(); }; row.appendChild(b); });
+    qs.forEach(q => { const b = document.createElement("button"); b.className = "qbtn"; b.textContent = q; b.onclick = () => { unlock(); setDepth(chosenLevel); $("q").value = q; ask(); }; row.appendChild(b); });
     wrap.appendChild(row); box.appendChild(wrap);
   }
 }
@@ -356,7 +356,7 @@ function renderStarters(){
 /* ---------- Quick vs Full ---------- */
 function setDepth(d){
   depth = d; $("dQuick").classList.toggle("on", d === "quick"); $("dFull").classList.toggle("on", d === "full");
-  try { localStorage.setItem("lh_depth", d); } catch(e) {}
+  if (d !== "simple") { chosenLevel = d; try { localStorage.setItem("hiw_level", d); } catch(e) {} }
 }
 $("dQuick").onclick = () => setDepth("quick");
 $("dFull").onclick = () => setDepth("full");
@@ -438,6 +438,7 @@ if (!SR) {
 }
 // If "Go deeper" is waiting, Ask uses what they typed or said (or goes deeper on everything when the box is empty)
 function goAsk(){
+  setDepth(chosenLevel);
   unlock();
   if (course && !course.locked) endCourse();
   if (pendingMore && !busy) {
@@ -863,6 +864,20 @@ function tidyText(g){
   if (!g || g._tidy) return; g._tidy = true;
   const texts = [...g.querySelectorAll("text")];
   texts.forEach(el => { el.style.paintOrder = "stroke"; el.style.stroke = "#05080b"; el.style.strokeWidth = "7px"; el.style.strokeLinejoin = "round"; });
+  // Shrinks a label that spills out of the box it sits in, so words stay inside their box.
+  const boxes = [...g.querySelectorAll("rect")].map(r => { try { return r.getBBox(); } catch(e) { return null; } }).filter(Boolean);
+  texts.forEach(el => {
+    let b; try { b = el.getBBox(); } catch(e) { return; }
+    if (!b.width) return;
+    const cx = b.x + 4, cy = b.y + b.height / 2;
+    const box = boxes.filter(r => cx >= r.x && cx <= r.x + r.width && cy >= r.y && cy <= r.y + r.height).sort((p, q) => p.width * p.height - q.width * q.height)[0];
+    if (!box) return;
+    const room = box.x + box.width - 8 - b.x;
+    if (b.width > room && room > 20) {
+      const fs = parseFloat(el.getAttribute("font-size")) || 18;
+      el.setAttribute("font-size", Math.max(11, Math.floor(fs * room / b.width)));
+    }
+  });
   const placed = [], pad = 4;
   const hit = (a, b) => a.x < b.x + b.width + pad && b.x < a.x + a.width + pad && a.y < b.y + b.height + pad && b.y < a.y + a.height + pad;
   const move = (el, dx, dy) => {
@@ -929,7 +944,7 @@ function updateCtrls(){
 document.querySelectorAll("#views button").forEach((b, i) => { b.onclick = () => { if (i < groups.length) { manual = true; flipStopped = true; showFigure(i); } }; });
 $("simpler").onclick = () => {
   if (busy || !lesson) return; unlock();
-  setDepth("quick");
+  setDepth("simple");
   if (course && !course.locked) endCourse();
   ask(lastQuestion || lesson.title || "", "", { scroll: true });
 };
@@ -1090,12 +1105,12 @@ function welcome(){
     "<line x1='340' y1='305' x2='386' y2='305' stroke='#7dd3fc' stroke-width='3' stroke-linecap='round'/>" +
     "<line x1='414' y1='305' x2='460' y2='305' stroke='#7dd3fc' stroke-width='3' stroke-linecap='round'/>" +
     "<path d='M 470 240 A 95 95 0 0 1 497 305' fill='none' stroke='#fbbf24' stroke-width='4' stroke-linecap='round'/>" +
-    "<text x='400' y='450' text-anchor='middle' font-family='JetBrains Mono, monospace' font-size='24' fill='#5eead4'>cutaway · parts · steps · where it's used</text>" }]);
+    "<text x='400' y='450' text-anchor='middle' font-family='JetBrains Mono, monospace' font-size='24' fill='#5eead4'>cutaway · parts · steps · real-world examples</text>" }]);
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (liveBoard || lesson || busy) return; manual = true; showFigure(0); });
 }
 
 /* ---------- start ---------- */
-try { if (localStorage.getItem("lh_depth") === "quick") depth = "quick"; } catch(e) {}
+try { const lv = localStorage.getItem("hiw_level"); depth = lv === "full" ? "full" : "quick"; } catch(e) { depth = "quick"; }
 setDepth(depth); setVoicePref(voicePref); renderStarters(); welcome();
 try { const c = JSON.parse(localStorage.getItem("lh_course") || "null"); if (c && Array.isArray(c.parts) && c.parts.length) { course = { ...c, locked: false }; renderCourse(); $("hint").textContent = "Welcome back. Tap a part above to continue your course."; } } catch(e) {}
 // A shared link (?q=...) opens that lecture right away; tap 🔊 Hear it to listen.
