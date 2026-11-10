@@ -382,6 +382,7 @@ let voicePref = "man";
 try { const v = localStorage.getItem("lh_voice"); if (v === "woman" || v === "mute") voicePref = v; } catch(e) {}
 function setVoicePref(p){
   voicePref = p;
+  if (p === "man" || p === "woman") { lastVoice = p; try { localStorage.setItem("hiw_voice_last", p); } catch(e) {} }
   $("vMan").classList.toggle("on", p === "man"); $("vWoman").classList.toggle("on", p === "woman"); $("vMute").classList.toggle("on", p === "mute");
   try { localStorage.setItem("lh_voice", p); } catch(e) {}
 }
@@ -402,7 +403,12 @@ setTimeout(() => setSpeed(speedPref), 0);
 $("vMan").onclick = () => { setVoicePref("man"); unlock(); sayShort("Welcome to How It Works."); };
 $("vWoman").onclick = () => { setVoicePref("woman"); unlock(); sayShort("Welcome to How It Works."); };
 // Mute: no voice at all; the words and pictures still appear in full.
-$("vMute").onclick = () => { const was = speaking; setVoicePref("mute"); try { if (typeof shortNode !== "undefined" && shortNode) shortNode.stop(); } catch(e) {} try { speechSynthesis.cancel(); } catch(e) {} if (was) { stopVoice(); finish(); } };
+var lastVoice = "man";
+try { if (localStorage.getItem("hiw_voice_last") === "woman") lastVoice = "woman"; } catch(e) {}
+$("vMute").onclick = () => {
+  // tap Mute again to bring back the last voice
+  if (voicePref === "mute") { setVoicePref(lastVoice); unlock(); sayShort("Voice on."); return; }
+  const was = speaking; setVoicePref("mute"); try { if (typeof shortNode !== "undefined" && shortNode) shortNode.stop(); } catch(e) {} try { speechSynthesis.cancel(); } catch(e) {} if (was) { stopVoice(); finish(); } };
 
 // Picks a different voice than the kids' site: the second-best match when the device has more than one.
 
