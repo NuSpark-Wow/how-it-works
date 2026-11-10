@@ -191,6 +191,10 @@ button{font-family:inherit;cursor:pointer}
   .notes h2,.read p,.card p,.terms div{color:#111}
   .read .w{color:#111 !important;background:none !important}
 }
+#pause.ready{animation:readyGlow 1.6s ease-in-out infinite;border-color:#a3e635;color:#a3e635}
+@keyframes readyGlow{0%,100%{box-shadow:0 0 0 0 rgba(163,230,53,.0)}50%{box-shadow:0 0 0 6px rgba(163,230,53,.35)}}
+#views button.fresh{animation:readyGlow 1.2s ease-in-out 3}
+@media (prefers-reduced-motion:reduce){#pause.ready,#views button.fresh{animation:none;outline:2px solid #a3e635}}
 </style>
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -598,6 +602,9 @@ function addFig(f){
   $("svg").appendChild(g); groups.push(g);
   $("thinking").classList.remove("on");
   updateCtrls();
+  const tab = document.querySelectorAll("#views button")[groups.length - 1];
+  if (tab) { tab.classList.add("fresh"); setTimeout(() => tab.classList.remove("fresh"), 4000); }   // its view tab glows as it becomes ready
+  if (typeof paused !== "undefined" && paused) { readyWhilePaused = true; pauseLabel(); }
   if (silentMode) { pump(); return; }              // shared link: nobody is talking, so flip on a timer
   if (!narrStarted) { if (!shown) showFigure(0); startNarration(); }
   else syncBoard(lastCi);
@@ -650,6 +657,14 @@ async function ask(text, context, opts){
   narrStarted = false; lastCi = -1; audioP = null; silentMode = !!opts.silent;
   buildBoard([]); liveBoard = true; boardDone = false;
 
+  // For a plain question the drawing starts right now, alongside the words, so the pictures are ready sooner.
+  // Figures that arrive before the words are kept and shown once the lesson is on screen.
+  let early = null;
+  if (!context && !opts.more && !opts.image) {
+    early = { figs: [], live: null, n: 0 };
+    early.p = streamBoard(question, "", {}, "", f => { if (my !== reqId) return; if (early.live) early.live(f); else early.figs.push(f); })
+      .then(n => { early.n = n; return n; }).catch(() => 0);
+  }
   let data = null, reason = "N0";
   for (let attempt = 0; attempt < 2 && !data; attempt++) {
     if (attempt === 1) $("hint").textContent = "One more moment…";
@@ -686,6 +701,12 @@ async function ask(text, context, opts){
   const parts = (data.answer || []).map(x => typeof x === "string" ? { heading: "", text: x } : x);
   const a = parts.map(x => ((x.heading ? x.heading + ": " : "") + (x.text || "")).trim()).filter(Boolean).slice(0, 5).map(x => x.slice(0, 900)).join("\n");
   let total = 0;
+  if (early) {
+    // show what has already been drawn, then the rest as it arrives
+    const add = f => { if (my === reqId && !boardOff) addFig(f); };
+    early.figs.forEach(add); early.live = add;
+    total = await early.p;
+  }
   for (let k = 0; k < 2 && total === 0 && my === reqId; k++) {
     try { total += await streamBoard(question, context, opts, a, f => { if (my === reqId && !boardOff) addFig(f); }); }
     catch(e) {}
@@ -1027,7 +1048,13 @@ function stopVoice(){
 $("stop").onclick = () => { stopVoice(); onProgress(1); };
 // Pause and Continue: the voice (and the pictures that follow it) wait right where they are.
 var paused = false;
-function pauseLabel(){ const b = $("pause"); if (!b) return; b.textContent = paused ? "▶ Continue" : "⏸ Pause"; b.classList.toggle("hide", !speaking); b.classList.toggle("on", paused); }
+var readyWhilePaused = false;
+function pauseLabel(){
+  const b = $("pause"); if (!b) return;
+  if (!paused) readyWhilePaused = false;
+  b.textContent = paused ? (readyWhilePaused ? "▶ Continue · diagram ready" : "▶ Continue") : "⏸ Pause";
+  b.classList.toggle("hide", !speaking); b.classList.toggle("on", paused); b.classList.toggle("ready", paused && readyWhilePaused);
+}
 function unpause(){ if (!paused) return; paused = false; try { if (ctx) ctx.resume(); } catch(e) {} try { speechSynthesis.resume(); } catch(e) {} pauseLabel(); }
 $("pause").onclick = () => {
   if (!speaking) return;
