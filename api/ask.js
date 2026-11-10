@@ -6,7 +6,7 @@
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const CHECK_MODEL = process.env.CLAUDE_CHECK_MODEL || "claude-haiku-5-5";
 // Diagrams use the fast model, which the drawing step is tuned for. The layout rules in SYSTEM_BOARD keep labels inside boxes and off lines.
-const BOARD_MODEL = process.env.BOARD_MODEL || "claude-haiku-5-5";
+const BOARD_MODEL = process.env.BOARD_MODEL || "claude-sonnet-5-5";   // the stronger model draws the diagrams (more accurate, cleaner labels)
 const HOURLY_LIMIT = 30;
 const hits = new Map();
 
@@ -88,8 +88,10 @@ Each svg is SVG ELEMENTS ONLY (no <svg> wrapper) on an 800 wide x 500 tall near-
 - TEXT SIZE MATH: at font-size 18, each character is about 10px wide (20px font: 11px). Any box holding text must be at least (characters x 10) + 28px wide. Prefer short labels (1-3 words). Never let text run past a box edge.
 - LINES NEVER CROSS TEXT: leader lines end 8px before the label starts; no line may pass through any label. Put labels in clear space to the right or left of the drawing, stacked with 34px between them.
 - STEP BY STEP layout: 3-6 steps in ONE clean left-to-right row (or 2 rows of 3, the second row also reading left to right). Each step: a numbered circle (r 18) above a box with a 1-3 word label, and a short caption line under the box. Straight arrows with small triangle arrowheads between boxes; arrows never cross boxes or circles.
-- CUTAWAY and TAKE IT APART: center the object on the left two-thirds; labels in a neat column on the right third (x 560-780), each with a leader line to its part.
-- LAYOUT: plan every position first. Objects must not overlap; text never sits on another shape's outline; leave 20px between things; keep inside x 20-780, y 20-480. Max 26 elements per figure. Each figure stands alone (the screen is cleared between figures).
+- CUTAWAY and TAKE IT APART: draw the object as accurately as you can, with true proportions and the parts in their real places and real shapes, the way an engineering textbook shows it. Center it on the left two-thirds; labels in a neat column on the right third (x 560-780, text-anchor='start'), in the same top-to-bottom order as the parts they name so leader lines never cross each other. Each leader line runs from a small dot (r 3) ON the part to 8px short of its label. EVERY label has a leader line, and every leader line ends on the part it names.
+- Every symbol, color or shape that stands for something has its own label or appears in the legend; never leave a symbol unexplained. Two labels never touch or stack closer than 34px.
+- Before you finish each figure, check: is every label's line touching the right part? Does any text run past x 20 or x 780? Does any line cross any text? Fix these first.
+- LAYOUT: plan every position first. Objects must not overlap; text never sits on another shape's outline; leave 20px between things; keep inside x 20-780, y 20-480. Max 40 elements per figure. Each figure stands alone (the screen is cleared between figures).
 
 Always respond by calling the give_board tool.`;
 
@@ -162,7 +164,7 @@ async function streamClaude(system, user, maxTokens, model, onText) {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, stream: true, thinking: { type: "disabled" }, messages: [{ role: "user", content: user }] })
+    body: JSON.stringify({ model, max_tokens: maxTokens, system, stream: true, ...(/haiku/i.test(model) ? { thinking: { type: "disabled" } } : {}), messages: [{ role: "user", content: user }] })   // the stronger model refuses that setting
   });
   if (!r.ok) { const t = await r.text().catch(() => ""); throw new Error("api_" + r.status + " " + t.slice(0, 200)); }
   const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "";
@@ -221,7 +223,7 @@ async function streamBoard(res, isGet, user, maxSteps, kidsLimits) {
   };
   for (let attempt = 0; attempt < 2 && !wrote && !none; attempt++) {
     text = "";
-    try { await streamClaude(SYSTEM_BOARD_STREAM, user, 8000, BOARD_MODEL, t => { text += t; flush(); }); flush(); lastErr = null; }
+    try { await streamClaude(SYSTEM_BOARD_STREAM, user, 16000, BOARD_MODEL, t => { text += t; flush(); }); flush(); lastErr = null; }
     catch (e) { lastErr = e; console.error("drawing attempt", attempt + 1, "failed:", e.message); }
     if (wrote || none) break;
   }
