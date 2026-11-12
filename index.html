@@ -1448,6 +1448,20 @@ async function loadImage(q){
 }
 
 /* ---------- welcome ---------- */
+// The intro waits until the board is actually on screen, so it isn't missed while someone reads the top of the page.
+var boardSeen = false, boardInView = true, introQueue = null;
+(function(){
+  const el = document.getElementById("svg");
+  if (!el || !("IntersectionObserver" in window)) { boardSeen = true; return; }
+  boardInView = false;
+  try {
+    new IntersectionObserver(es => { es.forEach(e => {
+      boardInView = e.isIntersecting && e.intersectionRatio >= 0.45;
+      if (boardInView) { boardSeen = true; if (introQueue) { const f = introQueue; introQueue = null; f(); } }
+    }); }, { threshold: [0, 0.45, 0.8] }).observe(el);
+  } catch(e) { boardSeen = true; boardInView = true; }
+})();
+function whenBoardSeen(fn){ if (boardSeen) fn(); else introQueue = fn; }
 function welcome(){
   buildBoard([{ title: "", caption: "Pick a topic or ask your own question.", svg:
     "<text x='400' y='92' text-anchor='middle' font-family='JetBrains Mono, monospace' font-size='26' fill='#c9d4df'>WELCOME TO</text>" +
@@ -1462,7 +1476,7 @@ function welcome(){
     "<line x1='414' y1='305' x2='460' y2='305' stroke='#7dd3fc' stroke-width='3' stroke-linecap='round'/>" +
     "<path d='M 470 240 A 95 95 0 0 1 497 305' fill='none' stroke='#fbbf24' stroke-width='4' stroke-linecap='round'/>" +
     "<text x='400' y='450' text-anchor='middle' font-family='JetBrains Mono, monospace' font-size='24' fill='#5eead4'>cutaway · parts · steps · real-world examples</text>" }]);
-  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { if (liveBoard || lesson || busy) return; manual = true; showFigure(0); });
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => whenBoardSeen(() => { if (liveBoard || lesson || busy) return; manual = true; showFigure(0); }));
 }
 
 /* ---------- start ---------- */
