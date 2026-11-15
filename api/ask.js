@@ -343,6 +343,40 @@ async function explainFigure(src, send) {
   }
 }
 
+// ---------- "Help me find one": 6 starter questions for a topic (never repeating ones already shown) ----------
+const STARTERS_TOOL = { name: "give_questions", description: "Deliver starter questions.",
+  input_schema: { type: "object", properties: { ok: { type: "boolean" }, questions: { type: "array", items: { type: "string" } } }, required: ["ok", "questions"] } };
+async function starterQs(src, send) {
+  const topic = String(src.topic || "").replace(/[<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  const skip = String(src.skip || "").replace(/[<>]/g, " ").slice(0, 2500);
+  if (topic.length < 2) return send(400, { error: "empty" });
+  try {
+    const j = await withRetry(() => callTool(
+      `You suggest questions for "How It Works", an explainer site that shows curious adults how technology, machines, buildings, systems, materials and natural forces work TODAY (no history, no inventors). Given a topic, write 6 short, specific, varied questions (each under 12 words), each starting with "How does", "How do", "How is" or "Why do". Mix everyday things with impressive engineering. Never repeat or closely reword any question in the "Already shown" list. If the topic is not appropriate for a general-audience site (sexual, hateful, weapons or harm-focused, or about a private person), set ok to false and questions to [].`,
+      STARTERS_TOOL, `Topic: ${topic}${skip ? `\nAlready shown: ${skip}` : ""}`, 800, x => Array.isArray(x.questions), CHECK_MODEL), 20000);
+    if (!j.ok) return send(200, { questions: [], message: "Let's try a different topic. How about elevators, solar panels, or your car?" }, true);
+    const questions = j.questions.map(q => String(q || "").replace(/\s+/g, " ").trim().slice(0, 120)).filter(Boolean).slice(0, 6);
+    return send(200, { questions }, true);
+  } catch (e) { return send(500, { error: "oops", reason: errorCode(e) }); }
+}
+
+// ---------- one quick question: only for short, broad asks like "engines" ----------
+const CLARIFY_TOOL = { name: "give_check", description: "Say whether the question is clear enough.",
+  input_schema: { type: "object", properties: { clear: { type: "boolean" }, question: { type: "string" }, choices: { type: "array", items: { type: "string" } } }, required: ["clear"] } };
+async function clarifyQ(src, send) {
+  const q = String(src.q || "").trim().slice(0, 120);
+  if (!q) return send(400, { error: "empty" });
+  if (HELP_WORDS.test(q)) return send(200, { clear: true }, true);
+  try {
+    const j = await withRetry(() => callTool(
+      `You help "How It Works", an explainer that shows how technology and things work today. A visitor typed a short request. Decide if it is clear enough to explain well. It is CLEAR when it names a specific thing or system (for example "heat pump", "how do elevators work", "MRI", "Wi-Fi", "jet engine"). It is NOT clear when it is a broad category that could mean very different things (for example "engines", "energy", "computers", "medicine", "space") or you cannot tell what they mean. When not clear, write ONE short, friendly follow-up in "question" (under 18 words; it may be read aloud) and 2 to 4 short tap answers in "choices" (each under 6 words), including a broad option like "How they work in general" when it fits. When in doubt, say clear.`,
+      CLARIFY_TOOL, `Request: ${q}`, 300, x => typeof x.clear === "boolean", CHECK_MODEL), 12000);
+    if (j.clear || !String(j.question || "").trim()) return send(200, { clear: true }, true);
+    const choices = Array.isArray(j.choices) ? j.choices.map(c => String(c || "").trim().slice(0, 60)).filter(Boolean).slice(0, 4) : [];
+    return send(200, { clear: false, question: String(j.question).trim().slice(0, 200), choices }, true);
+  } catch (e) { return send(200, { clear: true }, false); }   // if the check fails, just answer the question
+}
+
 module.exports = async (req, res) => {
   if (!allowedRequest(req)) return blockRequest(res);
   const isGet = req.method === "GET";
@@ -355,6 +389,8 @@ module.exports = async (req, res) => {
 
   const src = (isGet ? req.query : req.body) || {};
   if (src.part === "explain") return explainFigure(src, send);
+  if (src.part === "starters") return starterQs(src, send);
+  if (src.part === "clarify") return clarifyQ(src, send);
   const part = ["board", "outline"].includes(src.part) ? src.part : "lecture";
   const question = String(src.q || src.question || "").trim().slice(0, 300);
   const depth = ["quick", "simple"].includes(src.depth) ? src.depth : "full";
