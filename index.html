@@ -59,6 +59,29 @@ button{font-family:inherit;cursor:pointer}
 .tile:hover{border-color:var(--accent)}
 .tile.on{background:var(--accent);border-color:var(--accent);color:#000}
 .tile.on .n{color:#000}
+.opt1{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.opt1 .ask{background:none;border:0;padding:0}
+.optlab{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--ink);margin:0 0 10px}
+.optlab .num{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#000;font-size:15px;flex:none}
+.orline{display:flex;align-items:center;gap:14px;margin:16px 4px;color:var(--accent);font-weight:800;font-size:17px;letter-spacing:3px;font-family:'JetBrains Mono',monospace}
+.orline::before,.orline::after{content:"";flex:1;height:1px;background:var(--line)}
+.topics.opt2{margin-top:0}
+.topics .th .optlab .num{color:#000;font-family:inherit;font-size:15px;font-weight:800}
+.ownrow2{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.ownrow2 input{flex:1;min-width:180px;border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:17px;font-family:inherit;color:var(--ink);outline:none;background:var(--card2)}
+.ownrow2 input:focus{border-color:var(--accent)}
+.ownsub{font-size:13.5px;color:var(--soft);font-weight:600;margin:0 0 8px}
+.qmore{margin-top:10px;border:1px dashed var(--accent);background:transparent;color:var(--accent);border-radius:10px;padding:10px 16px;font-weight:700;font-size:15px;min-height:46px}
+.qwait{grid-column:1/-1;color:var(--soft);font-style:italic;padding:6px 2px}
+.clar{margin-top:14px;border:2px solid var(--accent);border-radius:12px;background:var(--board);padding:14px}
+.clar .ctag{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;margin-bottom:6px}
+.clar .cq{font-size:19px;font-weight:700;color:var(--ink);margin:0 0 12px;line-height:1.35}
+.cch{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.cch button{border:1px solid var(--accent);background:var(--card2);color:var(--ink);border-radius:999px;padding:10px 16px;font-weight:700;font-size:15px;min-height:46px}
+.cch button:hover{background:var(--accent);color:#000}
+.crow2{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.crow2 input{flex:1;min-width:160px;border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:17px;font-family:inherit;color:var(--ink);outline:none;background:var(--card2)}
+.crow2 .mic{width:52px;height:52px;font-size:22px}
 .qs{margin-top:14px;border:1px solid var(--accent);border-radius:12px;background:var(--board);padding:14px}
 .qs .ql{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.08em;color:var(--accent);margin-bottom:10px;text-transform:uppercase}
 .qrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -255,18 +278,29 @@ button{font-family:inherit;cursor:pointer}
     </div>
   </div>
 
+  <div class="opt1">
+  <div class="optlab"><span class="num">1</span> I have a question</div>
   <div class="ask">
     <button class="mic" id="mic" aria-label="Ask with your voice">🎤</button>
     <button class="mic cam" id="cam" aria-label="Add a picture">📷</button>
     <input type="file" id="camFile" accept="image/*" hidden>
     <div class="field">
-      <input id="q" maxlength="300" placeholder="Ask how anything works…" autocomplete="off">
-      <div class="hint" id="hint">Pick a topic below, tap the mic, add a photo, or type your question.</div>
+      <input id="q" maxlength="300" autocomplete="off" aria-label="Your question">
+      <div class="hint" id="hint">Type or say any question, like "How does a heat pump heat a house?" Or tap the camera to ask about a photo.</div>
       <div class="photo hide" id="photoBox"><img id="photoImg" alt=""><button id="photoX">✕ Remove picture</button></div>
     </div>
     <button class="go" id="go">Ask</button>
   </div>
-  <div class="topics" id="starters"></div>
+  <div class="clar hide" id="clar" role="dialog" aria-label="One quick question">
+    <div class="ctag">One quick question</div>
+    <p class="cq" id="cq"></p>
+    <div class="cch" id="cch"></div>
+    <div class="crow2"><button class="mic" id="cmic" aria-label="Answer out loud">🎤</button><input id="cbox" maxlength="150" aria-label="Your answer" autocomplete="off"><button class="go" id="cgo">Ask</button></div>
+    <div class="hint" id="chint">Tap an answer, or type your own in the box.</div>
+  </div>
+  </div>
+  <div class="orline" aria-hidden="true">OR</div>
+  <div class="topics opt2" id="starters"></div>
 
   <div class="course hide" id="course"></div>
 
@@ -348,21 +382,21 @@ button{font-family:inherit;cursor:pointer}
 const $ = id => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 const TOPICS = [
-["Transportation & Aviation", ["How does an electric car motor work?", "How does a jet engine create thrust?", "How does a self-driving car see the road?", "How does a helicopter stay in the air?"]],
-["Buildings & Engineering", ["How do skyscrapers stay up in high winds?", "How does a suspension bridge carry weight?", "How do buildings survive earthquakes?", "How does an elevator know where to stop?"]],
-["AI & Robotics", ["How does an AI chatbot write an answer?", "How does a robot arm know where to grab?", "How does a robot vacuum map a room?", "How does facial recognition unlock a phone?"]],
-["Computers & Digital Technology", ["How does Wi-Fi send data through the air?", "How does a computer chip process data?", "How does the cloud store your photos?", "How does a password stay secure?"]],
-["Communications & Imaging", ["How does a phone camera focus so fast?", "How does a cell tower connect your call?", "How does a video stream without stopping?", "How does noise-canceling work?"]],
-["Electricity & Energy", ["How do solar panels make electricity?", "How does a lithium battery store energy?", "How does a wind turbine generate power?", "How does a heat pump heat a house?"]],
-["Engines, Machines & Manufacturing", ["How does a 3D printer build objects?", "How does an assembly line build a car?", "How does a CNC machine cut metal?", "How does a hydraulic lift raise a car?"]],
-["Logistics & Supply Chain", ["How does a package get to your door in a day?", "How do warehouse robots pick orders?", "How does a barcode scanner read a label?", "How do container ships load and unload?"]],
-["Space & Satellites", ["How does GPS know where you are?", "How do satellites stay in orbit?", "How does a rocket land itself?", "How does satellite internet reach your home?"]],
-["Infrastructure & Utilities", ["How does water get to your faucet?", "How does the power grid balance supply?", "How do traffic lights know when to change?", "How does a water treatment plant clean water?"]],
-["Medical Technology", ["How does an MRI see inside the body?", "How does a pacemaker keep a heart on beat?", "How does a smartwatch read your heart rate?", "How does a robotic surgery arm work?"]],
-["Home & Consumer Technology", ["How does a microwave heat food?", "How does a smart thermostat learn?", "How does an induction cooktop work?", "How does a smart doorbell see visitors?"]],
-["Everyday Objects", ["How does a zipper lock together?", "How does a lock and key work?", "How does a ballpoint pen keep ink flowing?", "How does a thermos keep things hot?"]],
-["Physics & Forces", ["How does a magnet attract metal?", "Why do airplane wings create lift?", "How does friction slow things down?", "How does a lens bend light?"]],
-["Chemistry & Materials", ["How does a battery turn a reaction into power?", "How is phone glass made so strong?", "How does nonstick coating work?", "How is carbon fiber light but strong?"]],
+["Transportation & Aviation", ["How does an electric car motor work?", "How does a jet engine create thrust?", "How does a self-driving car see the road?", "How does a helicopter stay in the air?", "How does an autopilot fly a plane?", "How do train brakes stop a heavy train?"]],
+["Buildings & Engineering", ["How do skyscrapers stay up in high winds?", "How does a suspension bridge carry weight?", "How do buildings survive earthquakes?", "How does an elevator know where to stop?", "How does air conditioning cool a building?", "How does a dam hold back a lake?"]],
+["AI & Robotics", ["How does an AI chatbot write an answer?", "How does a robot arm know where to grab?", "How does a robot vacuum map a room?", "How does facial recognition unlock a phone?", "How does a voice assistant understand speech?", "How do delivery drones find their way?"]],
+["Computers & Digital Technology", ["How does Wi-Fi send data through the air?", "How does a computer chip process data?", "How does the cloud store your photos?", "How does a password stay secure?", "How does a touchscreen know where you tap?", "How does a QR code store information?"]],
+["Communications & Imaging", ["How does a phone camera focus so fast?", "How does a cell tower connect your call?", "How does a video stream without stopping?", "How does noise-canceling work?", "How does fiber optic cable carry the internet?", "How does an OLED TV make a picture?"]],
+["Electricity & Energy", ["How do solar panels make electricity?", "How does a lithium battery store energy?", "How does a wind turbine generate power?", "How does a heat pump heat a house?", "How does a power plant make electricity?", "How does an EV charger fill a car battery?"]],
+["Engines, Machines & Manufacturing", ["How does a 3D printer build objects?", "How does an assembly line build a car?", "How does a CNC machine cut metal?", "How does a hydraulic lift raise a car?", "How does a car engine turn fuel into motion?", "How does a robot weld a car body?"]],
+["Logistics & Supply Chain", ["How does a package get to your door in a day?", "How do warehouse robots pick orders?", "How does a barcode scanner read a label?", "How do container ships load and unload?", "How is a shipping container tracked worldwide?", "How does refrigerated shipping keep food cold?"]],
+["Space & Satellites", ["How does GPS know where you are?", "How do satellites stay in orbit?", "How does a rocket land itself?", "How does satellite internet reach your home?", "How does a space station make air and water?", "How does the James Webb telescope see so far?"]],
+["Infrastructure & Utilities", ["How does water get to your faucet?", "How does the power grid balance supply?", "How do traffic lights know when to change?", "How does a water treatment plant clean water?", "How does a sewer system carry waste away?", "How does a toll road read your E-ZPass?"]],
+["Medical Technology", ["How does an MRI see inside the body?", "How does a pacemaker keep a heart on beat?", "How does a smartwatch read your heart rate?", "How does a robotic surgery arm work?", "How does an X-ray see bones?", "How does a hearing aid make sound clearer?"]],
+["Home & Consumer Technology", ["How does a microwave heat food?", "How does a smart thermostat learn?", "How does an induction cooktop work?", "How does a smart doorbell see visitors?", "How does a refrigerator keep food cold?", "How does a dishwasher clean dishes?"]],
+["Everyday Objects", ["How does a zipper lock together?", "How does a lock and key work?", "How does a ballpoint pen keep ink flowing?", "How does a thermos keep things hot?", "How does Velcro stick together?", "How does a toilet flush?"]],
+["Physics & Forces", ["How does a magnet attract metal?", "Why do airplane wings create lift?", "How does friction slow things down?", "How does a lens bend light?", "How does sound travel through the air?", "Why do heavy steel ships float?"]],
+["Chemistry & Materials", ["How does a battery turn a reaction into power?", "How is phone glass made so strong?", "How does nonstick coating work?", "How is carbon fiber light but strong?", "How does soap remove grease?", "How does rust form on metal?"]],
 ["Other: My Own Topic", []]
 ];
 
@@ -376,12 +410,16 @@ let depth = "quick", chosenLevel = "quick", course = null;
 function track(name, data){ try { window.va("event", { name, data }); } catch(e) {} }
 function toast(msg){ const el = $("toast"); el.textContent = msg; el.classList.add("on"); setTimeout(() => el.classList.remove("on"), 2200); }
 
-let topicSel = 0;
+// Option 2: pick a topic, then tap a starter question (6 at a time, "Show me 6 more" writes fresh ones)
+let topicSel = -1, ownText = "";
+const qSets = {}, qIdx = {};   // topic key -> list of 6-question sets already shown
+function curKey(){ if (topicSel < 0) return ""; return TOPICS[topicSel][1].length ? TOPICS[topicSel][0] : (ownText ? "own:" + ownText.toLowerCase() : ""); }
 function renderStarters(){
   const box = $("starters"); box.innerHTML = "";
   const th = document.createElement("div"); th.className = "th";
-  const tb = document.createElement("b"); tb.textContent = "Choose a topic"; th.appendChild(tb);
-  const ts = document.createElement("span"); ts.textContent = "15 topics · tap one, then a starter question"; th.appendChild(ts);
+  const tb = document.createElement("div"); tb.className = "optlab"; tb.style.margin = "0";
+  tb.innerHTML = '<span class="num">2</span> Help me find one'; th.appendChild(tb);
+  const ts = document.createElement("span"); ts.textContent = "Pick a topic, then tap a question"; th.appendChild(ts);
   box.appendChild(th);
   const tiles = document.createElement("div"); tiles.className = "tiles";
   TOPICS.forEach((t, i) => {
@@ -390,19 +428,56 @@ function renderStarters(){
     const n = document.createElement("span"); n.className = "n"; n.textContent = String(i + 1).padStart(2, "0"); b.appendChild(n);
     b.appendChild(document.createTextNode(t[0]));
     b.onclick = () => {
-      topicSel = i; renderStarters();
-      if (!t[1].length) { $("q").focus(); $("hint").textContent = "Type or say any question, or tap the camera to explain a photo."; }
+      topicSel = topicSel === i ? -1 : i; renderStarters();
+      if (topicSel === i && !t[1].length) setTimeout(() => { const o = $("ownT"); if (o) o.focus({ preventScroll: true }); }, 50);
     };
     tiles.appendChild(b);
   });
   box.appendChild(tiles);
-  const qs = TOPICS[topicSel][1];
-  if (qs.length) {
-    const wrap = document.createElement("div"); wrap.className = "qs";
-    const ql = document.createElement("div"); ql.className = "ql"; ql.textContent = "Starter questions · " + TOPICS[topicSel][0]; wrap.appendChild(ql);
-    const row = document.createElement("div"); row.className = "qrow";
-    qs.forEach(q => { const b = document.createElement("button"); b.className = "qbtn"; b.textContent = q; b.onclick = () => { unlock(); setDepth(chosenLevel); $("q").value = q; ask(); }; row.appendChild(b); });
-    wrap.appendChild(row); box.appendChild(wrap);
+  if (topicSel < 0) return;
+  const isOwn = !TOPICS[topicSel][1].length;
+  const wrap = document.createElement("div"); wrap.className = "qs";
+  if (isOwn) {
+    const ql = document.createElement("div"); ql.className = "ql"; ql.textContent = "Type your own topic"; wrap.appendChild(ql);
+    const sub = document.createElement("p"); sub.className = "ownsub"; sub.textContent = "Like elevators, coffee makers, or noise-canceling earbuds."; wrap.appendChild(sub);
+    const row = document.createElement("div"); row.className = "ownrow2";
+    row.innerHTML = '<input id="ownT" maxlength="80" aria-label="Your own topic" autocomplete="off"><button class="go" id="ownGo">Show me questions</button>';
+    wrap.appendChild(row);
+    box.appendChild(wrap);
+    $("ownT").value = ownText;
+    const goOwn = () => { const v = $("ownT").value.trim(); if (v.length < 2) { $("ownT").focus(); return; } unlock(); ownText = v; renderStarters(); };
+    $("ownGo").onclick = goOwn;
+    $("ownT").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); goOwn(); } };
+    if (!ownText) return;
+  } else box.appendChild(wrap);
+  const key = curKey(), label = isOwn ? ownText : TOPICS[topicSel][0];
+  const ql = document.createElement("div"); ql.className = "ql"; ql.textContent = "Starter questions · " + label; wrap.appendChild(ql);
+  const row = document.createElement("div"); row.className = "qrow"; row.id = "qrow"; wrap.appendChild(row);
+  const more = document.createElement("button"); more.className = "qmore"; more.textContent = "🔄 Show me 6 more"; more.onclick = () => { unlock(); moreQs(key, label); };
+  wrap.appendChild(more);
+  if (!qSets[key]) { if (isOwn) { qSets[key] = []; moreQs(key, label); return; } qSets[key] = [TOPICS[topicSel][1].slice(0, 6)]; qIdx[key] = 0; }
+  paintQs(key);
+}
+function paintQs(key){
+  const row = $("qrow"); if (!row || curKey() !== key) return; row.innerHTML = "";
+  const set = (qSets[key] || [])[qIdx[key] || 0] || [];
+  set.forEach(q => { const b = document.createElement("button"); b.className = "qbtn"; b.textContent = q; b.onclick = () => { unlock(); viaMic = false; setDepth(chosenLevel); $("q").value = q; hideClar(); ask(); }; row.appendChild(b); });
+}
+async function moreQs(key, label){
+  const sets = qSets[key] || (qSets[key] = []);
+  // already have the next set from before: just show it
+  if (qIdx[key] !== undefined && qIdx[key] + 1 < sets.length) { qIdx[key]++; return paintQs(key); }
+  const row = $("qrow"); if (row) row.innerHTML = '<div class="qwait">Thinking of good questions about ' + label.replace(/[<>&]/g, "") + '…</div>';
+  const skip = sets.flat().join(" | ");
+  try {
+    const r = await fetch("/api/ask?part=starters&topic=" + encodeURIComponent(label) + "&skip=" + encodeURIComponent(skip));
+    const d = await r.json();
+    if (!r.ok || !Array.isArray(d.questions) || !d.questions.length) throw new Error(d.message || "");
+    sets.push(d.questions.slice(0, 6)); qIdx[key] = sets.length - 1; paintQs(key);
+  } catch (e) {
+    const rw = $("qrow"); if (!rw || curKey() !== key) return;
+    if (sets.length) { qIdx[key] = 0; paintQs(key); toast("Couldn't find new ones right now. Try again in a moment."); }
+    else rw.innerHTML = '<div class="qwait">' + (e.message || "Hmm, I couldn't think of questions for that one. Try another topic, or ask in box 1.").replace(/[<>&]/g, "") + '</div>';
   }
 }
 
@@ -499,7 +574,7 @@ function pickVoice(){
 
 /* ---------- microphone ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, listening = false, micTarget = "q";
+let rec = null, listening = false, micTarget = "q", viaMic = false;
 function startListening(){
   if (!rec) { $("q").focus(); return; }
   micTarget = "q";
@@ -520,11 +595,11 @@ if (!SR) {
       $("fStatus").textContent = $("fq").value.trim() ? "Look right? Tap " + $("fGo").textContent + "." : (followMode === "more" ? "" : "Didn't catch that. Tap the mic and try again.");
       return;
     } $("mic").classList.remove("listening"); $("mic").textContent = "🎤";
-    if ($("q").value.trim()) { $("hint").textContent = "Look right? Tap Ask. (Or tap the mic to try again.)"; $("go").classList.add("ready"); }
+    if ($("q").value.trim()) { viaMic = true; $("hint").textContent = "Look right? Tap Ask. (Or tap the mic to try again.)"; $("go").classList.add("ready"); }
     else $("hint").textContent = "Didn't catch that. Tap the mic and try again.";
   };
   rec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") $(micTarget === "fq" ? "fStatus" : "hint").textContent = "Microphone is blocked. Allow it in your browser, or type instead."; };
-  $("mic").onclick = () => { unlock(); if (listening) { rec.stop(); return; } $("q").value = ""; $("go").classList.remove("ready"); startListening(); };
+  $("mic").onclick = () => { unlock(); if (listening) { rec.stop(); return; } $("q").value = ""; $("go").classList.remove("ready"); if (topicSel >= 0) { topicSel = -1; renderStarters(); } startListening(); };
 }
 // If "Go deeper" is waiting, Ask uses what they typed or said (or goes deeper on everything when the box is empty)
 function goAsk(){
@@ -537,10 +612,58 @@ function goAsk(){
     ask(typed || "Go deeper on " + pm.title, pm.title, { more: true, prev: pm.prev });
     return;
   }
-  ask();
+  // A short, broad question (like "engines") gets one quick follow-up first, so the answer fits
+  const typed = $("q").value.trim();
+  if (!photo && typed && !busy && !followUp && typed.split(/\s+/).length <= 5) { checkClar(typed); return; }
+  hideClar(); ask();
+}
+/* ---------- one quick question ---------- */
+let clarOrig = "", clarVoice = false, cRec = null, cListening = false, clarBusy = false;
+function hideClar(){ $("clar").classList.add("hide"); if (cListening && cRec) { try { cRec.abort(); } catch(e) {} } }
+async function checkClar(typed){
+  if (clarBusy) return; clarBusy = true;
+  $("hint").textContent = "One moment…";
+  let d = null;
+  try { const r = await fetch("/api/ask?part=clarify&q=" + encodeURIComponent(norm(typed))); if (r.ok) d = await r.json(); } catch(e) {}
+  clarBusy = false;
+  if (!d || d.clear !== false || !d.question) { hideClar(); ask(); return; }
+  clarOrig = typed; clarVoice = viaMic;
+  $("cq").textContent = d.question; $("cch").innerHTML = "";
+  (d.choices || []).forEach(c => { const b = document.createElement("button"); b.textContent = c; b.onclick = () => answerClar(c); $("cch").appendChild(b); });
+  $("cbox").value = ""; $("chint").textContent = clarVoice ? "Answer out loud, tap an answer, or type your own." : "Tap an answer, or type your own in the box.";
+  $("clar").classList.remove("hide"); $("hint").textContent = "One quick question first, just below.";
+  if (clarVoice) sayShort(d.question, () => setTimeout(clarListen, 250));
+}
+function answerClar(a){
+  a = String(a || "").trim(); if (!a) { $("cbox").focus(); $("chint").textContent = "Tap an answer, or type your own first."; return; }
+  hideClar(); unlock(); setDepth(chosenLevel);
+  $("q").value = clarOrig + " (" + a + ")"; ask();
+}
+$("cgo").onclick = () => answerClar($("cbox").value);
+$("cbox").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("cgo").click(); } });
+function clarListen(){
+  if (!cRec || cListening || $("clar").classList.contains("hide")) return;
+  $("cbox").value = "";
+  try { cRec.start(); cListening = true; $("cmic").classList.add("listening"); $("cmic").textContent = "👂"; $("chint").textContent = "Listening… go ahead and answer."; } catch(e) {}
+}
+if (SR) {
+  cRec = new SR(); cRec.lang = "en-US"; cRec.interimResults = true; cRec.continuous = false;
+  cRec.onresult = e => { let s = ""; for (const r of e.results) s += r[0].transcript; $("cbox").value = s; };
+  cRec.onend = () => {
+    cListening = false; $("cmic").classList.remove("listening"); $("cmic").textContent = "🎤";
+    if ($("clar").classList.contains("hide")) return;
+    if ($("cbox").value.trim()) answerClar($("cbox").value);   // a spoken answer goes straight to the explanation
+    else $("chint").textContent = "Didn't catch that. Tap the mic and try again, or tap an answer.";
+  };
+  cRec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") $("chint").textContent = "The microphone is blocked. Tap an answer or type instead."; };
+  $("cmic").onclick = () => { unlock(); if (cListening) { cRec.stop(); return; } clarListen(); };
+} else {
+  $("cmic").onclick = () => { $("cbox").focus(); $("chint").textContent = "Tap the 🎤 on your keyboard to speak, or just type."; };
 }
 $("go").onclick = goAsk;
 $("q").addEventListener("keydown", e => { if (e.key === "Enter") goAsk(); });
+// Box 1 and box 2 never mix: typing a question clears the topic pick
+$("q").addEventListener("input", () => { viaMic = false; if (topicSel >= 0) { topicSel = -1; renderStarters(); } });
 
 /* ---------- picture upload: explained, then thrown away (never saved) ---------- */
 const EXPLAIN_PIC = "Explain this picture";
@@ -1402,9 +1525,8 @@ function browserVoice(text){
   setTimeout(() => { if (!speaking) onProgress(1); }, 2500);
 }
 // Short lines use the same ElevenLabs voice, so phones match desktop
-async function sayShort(text){
-  if (voicePref === "mute") return;
-  if (!text) return;
+async function sayShort(text, done){
+  if (voicePref === "mute" || !text) { if (done) setTimeout(done, 200); return; }
   const id = ++shortId;
   try { if (shortNode) shortNode.stop(); } catch(e) {}
   try { speechSynthesis.cancel(); } catch(e) {}
@@ -1417,18 +1539,17 @@ async function sayShort(text){
         const bytes = Uint8Array.from(atob(d.audio), c => c.charCodeAt(0));
         const buf = await ctx.decodeAudioData(bytes.buffer);
         if (id !== shortId || speaking) return;
-        shortNode = ctx.createBufferSource(); shortNode.buffer = buf; shortNode.connect(leveled(buf)); shortNode.start();
+        shortNode = ctx.createBufferSource(); shortNode.buffer = buf; shortNode.connect(leveled(buf)); if (done) shortNode.onended = done; shortNode.start();
         return;
       }
     } catch(e) {}
   }
   if (id !== shortId) return;
-  browserShort(text);
+  browserShort(text, done);
 }
-function browserShort(text){
-  if (voicePref === "mute") return;
-  if (!("speechSynthesis" in window) || !text) return;
-  const u = new SpeechSynthesisUtterance(text); const v = pickVoice(); if (v) u.voice = v; u.rate = voiceRate(); u.pitch = pitchFor(v, 1.0);
+function browserShort(text, done){
+  if (voicePref === "mute" || !("speechSynthesis" in window) || !text) { if (done) setTimeout(done, 200); return; }
+  const u = new SpeechSynthesisUtterance(text); if (done) u.onend = done; const v = pickVoice(); if (v) u.voice = v; u.rate = voiceRate(); u.pitch = pitchFor(v, 1.0);
   speechSynthesis.cancel(); speechSynthesis.speak(u);
 }
 if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = () => {};
