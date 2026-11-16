@@ -629,7 +629,9 @@ async function checkClar(typed){
   if (!d || d.clear !== false || !d.question) { hideClar(); ask(); return; }
   clarOrig = typed; clarVoice = viaMic;
   $("cq").textContent = d.question; $("cch").innerHTML = "";
-  (d.choices || []).forEach(c => { const b = document.createElement("button"); b.textContent = c; b.onclick = () => answerClar(c); $("cch").appendChild(b); });
+  // the default is always a general overview: it's the first answer, so one tap gets it
+  const chs = (d.choices || []).filter(c => !/general overview|in general/i.test(c));
+  ["A general overview"].concat(chs).slice(0, 4).forEach(c => { const b = document.createElement("button"); b.textContent = c; b.onclick = () => answerClar(c); $("cch").appendChild(b); });
   $("cbox").value = ""; $("chint").textContent = clarVoice ? "Answer out loud, tap an answer, or type your own." : "Tap an answer, or type your own in the box.";
   $("clar").classList.remove("hide"); $("hint").textContent = "One quick question first, just below.";
   if (clarVoice) sayShort(d.question, () => setTimeout(clarListen, 250));
@@ -653,7 +655,7 @@ if (SR) {
     cListening = false; $("cmic").classList.remove("listening"); $("cmic").textContent = "🎤";
     if ($("clar").classList.contains("hide")) return;
     if ($("cbox").value.trim()) answerClar($("cbox").value);   // a spoken answer goes straight to the explanation
-    else $("chint").textContent = "Didn't catch that. Tap the mic and try again, or tap an answer.";
+    else $("chint").textContent = "Didn't catch that. Tap the mic and try again, or tap \"A general overview.\"";
   };
   cRec.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") $("chint").textContent = "The microphone is blocked. Tap an answer or type instead."; };
   $("cmic").onclick = () => { unlock(); if (cListening) { cRec.stop(); return; } clarListen(); };
