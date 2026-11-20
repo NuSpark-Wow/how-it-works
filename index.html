@@ -319,6 +319,14 @@ button{font-family:inherit;cursor:pointer}
 .studybar #bCont.ready:not(:disabled){animation:readyGlow 1.6s ease-in-out infinite;border-color:#a3e635}
 #replayAll{font-weight:800}
 #replayAll:disabled{opacity:.4}
+/* picture labels: the same "Picture N" shows on the screen caption and above the words that go with it */
+.picnum{display:inline-block;margin:16px 0 2px;border:1px solid var(--accent);color:var(--accent);background:rgba(94,234,212,.08);border-radius:999px;padding:3px 10px;font:700 12px 'JetBrains Mono',monospace;letter-spacing:.04em;cursor:pointer}
+.picnum:hover{background:var(--accent);color:#000}
+.read .sec{border-left:3px solid transparent;padding-left:10px;margin-left:-13px;transition:border-color .2s}
+.read .sec.on{border-left-color:var(--accent)}
+/* test mode (?debug=1): shows which picture the voice is on and which picture the screen shows */
+#dbg{position:absolute;left:8px;top:8px;z-index:5;font:700 13px 'JetBrains Mono',monospace;padding:6px 10px;border-radius:8px;background:#0b3d2e;color:#a7f3d0;border:2px solid #34d399;pointer-events:none}
+#dbg.bad{background:#4a1010;color:#fecaca;border-color:#f87171}
 </style>
 <script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -480,6 +488,15 @@ let words = [], speech = "";
 let shortNode = null, shortId = 0;
 let ctx = null, srcNode = null, lastAudio = null, raf = 0, voiceOff = false, speaking = false;
 let depth = "quick", chosenLevel = "quick", course = null;
+// One timeline: every section of the words belongs to one picture, and the voice and the screen always use this map
+let paraFig = [], paraEls = [];
+const DEBUG = /[?&]debug=1\b/.test(location.search);
+const VIEW_RE = [/cutaway|inside|overview|big picture|what it is/i, /apart|parts|components|pieces|anatomy/i, /step/i, /real|example|world|where you|today|uses/i];
+function mapParas(parts){
+  const kw = parts.map(x => { const h = String(x.heading || ""); for (let v = 0; v < VIEW_RE.length; v++) if (VIEW_RE[v].test(h)) return v; return -1; });
+  if (kw.every(v => v < 0)) return parts.map((x, i) => i);
+  let prev = 0; return kw.map(v => v < 0 ? prev : (prev = v));
+}
 function track(name, data){ try { window.va("event", { name, data }); } catch(e) {} }
 function toast(msg){ const el = $("toast"); el.textContent = msg; el.classList.add("on"); setTimeout(() => el.classList.remove("on"), 2200); }
 
@@ -573,6 +590,7 @@ function unlock(){
 let voicePref = "man";
 try { const v = localStorage.getItem("lh_voice"); if (v === "woman" || v === "mute") voicePref = v; } catch(e) {}
 function setVoicePref(p){
+  if (p !== voicePref && (p === "man" || p === "woman")) lastAudio = null;   // the other voice needs its own recording
   voicePref = p;
   if (p === "man" || p === "woman") { lastVoice = p; try { localStorage.setItem("hiw_voice_last", p); } catch(e) {} }
   $("vMan").classList.toggle("on", p === "man"); $("vWoman").classList.toggle("on", p === "woman"); $("vMute").classList.toggle("on", p === "mute");
@@ -605,15 +623,17 @@ $("sSlow").onclick = () => { setSpeed("slow"); unlock(); if (!speaking) sayShort
 $("sNormal").onclick = () => { setSpeed("normal"); unlock(); if (!speaking) sayShort("Back to my normal speed."); };
 $("sFast").onclick = () => { setSpeed("fast"); unlock(); if (!speaking) sayShort("Okay, I'll talk a little faster now."); };
 setTimeout(() => setSpeed(speedPref), 0);
-$("vMan").onclick = () => { setVoicePref("man"); unlock(); sayShort("Welcome to How It Works."); };
-$("vWoman").onclick = () => { setVoicePref("woman"); unlock(); sayShort("Welcome to How It Works."); };
+$("vMan").onclick = () => { const wasMute = voicePref === "mute"; setVoicePref("man"); unlock(); if (wasMute && lessonLive()) playFromFig(Math.max(0, shown - 1)); else sayShort("Welcome to How It Works."); };
+$("vWoman").onclick = () => { const wasMute = voicePref === "mute"; setVoicePref("woman"); unlock(); if (wasMute && lessonLive()) playFromFig(Math.max(0, shown - 1)); else sayShort("Welcome to How It Works."); };
 // Mute: no voice at all; the words and pictures still appear in full.
 var lastVoice = "man";
 try { if (localStorage.getItem("hiw_voice_last") === "woman") lastVoice = "woman"; } catch(e) {}
 $("vMute").onclick = () => {
   // tap Mute again to bring back the last voice
-  if (voicePref === "mute") { setVoicePref(lastVoice); unlock(); sayShort("Voice on."); return; }
-  const was = speaking; setVoicePref("mute"); try { if (typeof shortNode !== "undefined" && shortNode) shortNode.stop(); } catch(e) {} try { speechSynthesis.cancel(); } catch(e) {} if (was) { stopVoice(); finish(); } };
+  if (voicePref === "mute") { setVoicePref(lastVoice); unlock(); if (lessonLive()) playFromFig(Math.max(0, shown - 1)); else sayShort("Voice on."); return; }
+  const was = speaking; setVoicePref("mute"); try { if (typeof shortNode !== "undefined" && shortNode) shortNode.stop(); } catch(e) {} try { speechSynthesis.cancel(); } catch(e) {}
+  if (was) { stopVoice(); muteBrowse(Math.max(0, shown - 1)); }   // the picture stays where it is
+};
 
 // Picks a different voice than the kids' site: the second-best match when the device has more than one.
 
@@ -623,14 +643,15 @@ function pitchFor(v, base){
 }
 // Some phone voices never report which word they are on; then estimate it from the clock so the board keeps up
 let estTimer = 0, estStart = 0, lastBoundary = 0;
-function startEstimate(total, rate){
+function startEstimate(total, rate, base){
+  base = base || 0;
   clearInterval(estTimer); estStart = Date.now(); lastBoundary = 0;
   const cps = 14.5 * rate;
   estTimer = setInterval(() => {
     if (!speaking) return;
     if (typeof paused !== "undefined" && paused) { estStart += 300; return; }   // paused: the read-along waits too
     if (lastBoundary && Date.now() - lastBoundary < 1500) return;
-    const ci = Math.min(total - 1, Math.floor((Date.now() - estStart) / 1000 * cps));
+    const ci = Math.min(total - 1, base + Math.floor((Date.now() - estStart) / 1000 * cps));
     highlight(ci); onProgress(ci / total);
   }, 300);
 }
@@ -858,6 +879,7 @@ function addFig(f){
   if (tab) { tab.classList.add("fresh"); setTimeout(() => tab.classList.remove("fresh"), 4000); }   // its view tab glows as it becomes ready
   if (typeof paused !== "undefined" && paused) { readyWhilePaused = true; pauseLabel(); }
   if (silentMode) { pump(); return; }              // shared link: nobody is talking, so flip on a timer
+  paintBadges();
   if (!narrStarted) { if (!shown) showFigure(0); startNarration(); }
   else syncBoard(lastCi);
 }
@@ -910,6 +932,7 @@ if ($("replayAll")) $("replayAll").onclick = () => replayLesson();
 function beginNarration(){
   if (narrStarted || silentMode) return;
   narrStarted = true; clearTimeout(narrTimer);
+  if (voicePref === "mute") { muteBrowse(0); toast("Muted. Tap ◀ ▶ or a view to move through the pictures."); return; }
   const my = reqId;
   (audioP || Promise.resolve(null)).then(a => {
     if (my !== reqId) return;
@@ -921,10 +944,85 @@ function paraAt(ci){
   let p = 0; for (let i = 0; i < pStarts.length; i++) if (pStarts[i] <= ci) p = i;
   return p;
 }
+function figForChar(ci){
+  if (!groups.length) return 0;
+  const p = paraAt(ci);
+  if (p === Infinity) return groups.length - 1;
+  const f = paraFig[p] != null ? paraFig[p] : p;
+  return Math.max(0, Math.min(f, groups.length - 1));
+}
+function paraForFig(i){
+  let p = paraFig.indexOf(i);
+  if (p < 0) { p = paraFig.findIndex(f => f >= i); if (p < 0) p = Math.max(0, paraFig.length - 1); }
+  return p;
+}
 function syncBoard(ci){
   if (manual || boardOff || !liveBoard || silentMode || !groups.length) return;
-  const want = Math.min(paraAt(ci), groups.length - 1);
-  if (want > shown - 1) showFigure(want);
+  const want = figForChar(ci);
+  if (want !== shown - 1) showFigure(want);
+  debugSync();
+}
+// Where in the recording a section starts
+function timeAt(a, ch){
+  if (a && a.timed) { const w = words.find(x => x.start >= ch && x.t != null); if (w) return w.t + 0.02; }
+  return a && a.buf ? a.buf.duration * ch / Math.max(1, speech.length) : 0;
+}
+// Starts the voice at the section that goes with picture i, and shows picture i
+async function playFromFig(i){
+  if (!lesson || !groups.length) return;
+  i = Math.max(0, Math.min(i, groups.length - 1));
+  const my = reqId;
+  silentMode = false; clearTimeout(pumpTimer); flipStopped = true; boardHeld = false; manual = false; narrStarted = true;
+  firstStartDone = true; startReady = false; if ($("read")) $("read").classList.remove("veil");
+  showFigure(i);
+  const ch = pStarts[paraForFig(i)] || 0;
+  if (voicePref === "mute") { muteBrowse(i); return; }
+  const a = lastAudio || await prepareAudio();
+  if (my !== reqId) return;
+  lastCi = ch - 1;
+  if (a) playBuffer(a, timeAt(a, ch)); else browserVoice(speech, ch);
+  studyUI();
+}
+// Muted, paused or finished: look at any picture; its words are outlined
+function muteBrowse(i){
+  manual = true; flipStopped = true; clearTimeout(pumpTimer);
+  if (groups.length) showFigure(Math.max(0, Math.min(i, groups.length - 1)));
+  studyUI();
+}
+// Tapping a view, ◀ or ▶: while the voice is talking it jumps to that picture's words; otherwise you just look
+function jumpTo(i){
+  if (i < 0 || i >= groups.length) return;
+  flipStopped = true;
+  if (speaking && !paused && voicePref !== "mute") { playFromFig(i); return; }
+  manual = true; showFigure(i);
+}
+// Continue after looking around: the voice picks up at the picture on screen
+function resumeHere(){
+  if (manual && shown && figForChar(lastCi) !== shown - 1) { playFromFig(shown - 1); return true; }
+  return false;
+}
+function lessonLive(){ return !!lesson && lesson.type === "lecture" && groups.length > 0 && narrStarted && !boardOff; }
+function markSection(i){
+  const p0 = paraForFig(i);
+  paraEls.forEach((els, p) => { const on = (paraFig[p] != null ? Math.min(paraFig[p], Math.max(0, groups.length - 1)) : p) === i || p === p0; els.forEach(e => e.classList.toggle("on", on)); });
+}
+function paintBadges(){
+  const n = groups.length;
+  document.querySelectorAll("#read .picnum").forEach(b => {
+    let f = paraFig[+b.dataset.p]; if (f == null) f = +b.dataset.p;
+    if (n && boardDone) f = Math.min(f, n - 1);
+    b.textContent = "🖼 Picture " + (f + 1);
+    b.onclick = () => { unlock(); jumpTo(f); toBoard(); };
+  });
+}
+function debugSync(){
+  if (!DEBUG) return;
+  let d = $("dbg"); if (!d) { d = document.createElement("div"); d.id = "dbg"; document.querySelector(".board").appendChild(d); }
+  const screen = shown ? shown : 0;
+  if (!speaking) { d.textContent = "VOICE: off · SCREEN: picture " + screen; d.classList.remove("bad"); return; }
+  const voice = figForChar(lastCi) + 1;
+  d.textContent = "VOICE: picture " + voice + " · SCREEN: picture " + screen + (voice === screen ? " ✓" : " ✗ MISMATCH");
+  d.classList.toggle("bad", voice !== screen);
 }
 function pump(){
   clearTimeout(pumpTimer);
@@ -1010,7 +1108,7 @@ async function ask(text, context, opts){
     catch(e) {}
   }
   if (my !== reqId) return;
-  boardDone = true; $("thinking").classList.remove("on");
+  boardDone = true; $("thinking").classList.remove("on"); paintBadges();
   if (!total && !groups.length) { boardOff = true; figs = [{ title: "", caption: "", svg: blankCard() }]; buildBoard(figs); showFigure(0); }
   else if (shown > 0) setCaption(shown - 1);
   startNarration();
@@ -1024,17 +1122,21 @@ function render(opts){
   const parts = (L.answer || []).map(a => typeof a === "string" ? { heading: "", text: a } : a);
   speech = parts.map(a => a.text).join(" ");
   words = []; let offset = 0; const read = $("read"); read.innerHTML = ""; pStarts = [];
-  parts.forEach(a => {
+  paraFig = isLec ? mapParas(parts) : []; paraEls = [];
+  parts.forEach((a, pi) => {
     pStarts.push(offset);
-    if (a.heading) { const h = document.createElement("h4"); h.textContent = a.heading; read.appendChild(h); }
+    const sec = document.createElement("div"); sec.className = "sec"; read.appendChild(sec); paraEls.push([sec]);
+    if (isLec) { const bd = document.createElement("span"); bd.className = "picnum"; bd.dataset.p = pi; sec.appendChild(bd); }
+    if (a.heading) { const h = document.createElement("h4"); h.textContent = a.heading; sec.appendChild(h); }
     const el = document.createElement("p");
     a.text.replace(/\S+|\s+/g, (tok, i) => {
       if (/\S/.test(tok)) { const s = document.createElement("span"); s.className = "w"; s.textContent = tok; el.appendChild(s); words.push({ el: s, start: offset + i, t: null }); }
       else el.appendChild(document.createTextNode(tok));
       return tok;
     });
-    read.appendChild(el); offset += a.text.length + 1;
+    sec.appendChild(el); offset += a.text.length + 1;
   });
+  paintBadges();
   $("playrow").classList.remove("hide");
   $("thumbs").classList.toggle("hide", !isLec); $("share").classList.toggle("hide", !isLec); $("pdf").classList.toggle("hide", !isLec);
   $("helpful").textContent = "Helpful?"; $("up").disabled = false; $("down").disabled = false;
@@ -1275,15 +1377,15 @@ function tidyText(g){
 function showFigure(i){
   if (i < 0 || i >= groups.length) return;
   drawGroup(groups[i]); tidyText(groups[i]); shown = i + 1;
-  setCaption(i);
+  setCaption(i); if (lesson && lesson.type === "lecture") markSection(i); debugSync();
   if (explainFor && explainFor !== groups[i]) { $("explain").classList.add("hide"); explainFor = null; $("bExplain").textContent = "📖 Explain this picture"; }
   updateCtrls();
 }
 // "(1 of 3)" only once we know how many figures there are
 function setCaption(i){
   const g = groups[i], cap = $("caption"); if (!g) return; cap.innerHTML = "";
-  const count = groups.length > 1 && (!liveBoard || boardDone) ? ` (${i + 1} of ${groups.length}) ` : " ";
-  if (g.dataset.title) { const b = document.createElement("b"); b.textContent = g.dataset.title + count; cap.appendChild(b); }
+  const n = groups.length > 1 && (!liveBoard || boardDone) ? groups.length : 0;
+  if (g.dataset.title) { const b = document.createElement("b"); b.textContent = "Picture " + (i + 1) + (n ? " of " + n : "") + " · " + g.dataset.title + " "; cap.appendChild(b); }
   cap.appendChild(document.createTextNode(g.dataset.caption || ""));
   renderLegend(g._legend, g._formulas);
 }
@@ -1321,16 +1423,16 @@ function updateCtrls(){
   const real = groups.length && groups[0].dataset.title !== "";
   document.querySelectorAll("#views button").forEach((b, i) => { b.disabled = !real || i >= groups.length; b.classList.toggle("on", real && i === shown - 1); });
 }
-document.querySelectorAll("#views button").forEach((b, i) => { b.onclick = () => { if (i < groups.length) { manual = true; flipStopped = true; showFigure(i); } }; });
+document.querySelectorAll("#views button").forEach((b, i) => { b.onclick = () => { unlock(); jumpTo(i); }; });
 $("simpler").onclick = () => {
   if (busy || !lesson) return; unlock();
   setDepth("simple");
   if (course && !course.locked) endCourse();
   ask(lastQuestion || lesson.title || "", "", { scroll: true });
 };
-$("next").onclick = () => { manual = true; flipStopped = true; revealNext(); };
-$("prev").onclick = () => { manual = true; flipStopped = true; if (shown > 1) showFigure(shown - 2); };
-$("replay").onclick = () => { manual = true; flipStopped = true; if (shown > 0) showFigure(shown - 1); };
+$("next").onclick = () => { unlock(); if (shown < groups.length) jumpTo(shown); };
+$("prev").onclick = () => { unlock(); if (shown > 1) jumpTo(shown - 2); };
+$("replay").onclick = () => { if (shown > 0) showFigure(shown - 1); };   // redraws the same picture; the voice keeps going
 function onProgress(f){ lastProgress = Math.max(lastProgress, f); if (f >= 1) { lastCi = Infinity; syncBoard(Infinity); } }
 // after the talking is done, flip through the figures on a timer (stops if the reader takes over)
 function autoFlip(){
@@ -1346,6 +1448,7 @@ function highlight(ci){
   for (let i = 0; i < words.length; i++) { if (words[i].start <= ci) k = i; else break; }
   words.forEach((w, i) => { w.el.classList.toggle("on", i === k); w.el.classList.toggle("done", i < k); });
   if (ci > lastCi) { lastCi = ci; syncBoard(ci); }
+  debugSync();
 }
 function clearHighlight(){ words.forEach(w => w.el.classList.remove("on","done")); $("read").classList.remove("speaking"); }
 function setSpeaking(on){ speaking = on; $("read").classList.toggle("speaking", on); $("stop").classList.toggle("hide", !on); $("again").classList.toggle("hide", on); if (!on) $("again").textContent = "🔊 Hear it again";  pauseLabel(); }
@@ -1378,7 +1481,7 @@ function pauseVoice(){
   try { speechSynthesis.pause(); } catch(e) {}
   pauseLabel();
 }
-$("pause").onclick = () => { if (!speaking) return; if (paused) unpause(); else pauseVoice(); };
+$("pause").onclick = () => { if (!speaking) return; if (paused) { if (!resumeHere()) unpause(); } else pauseVoice(); };
 
 /* ---------- study bar under the chalkboard ---------- */
 // Pause stops the voice AND the pictures, so you can study the board; Continue picks both up where they were.
@@ -1407,7 +1510,7 @@ $("bCont").onclick = () => {
   if (startGateOn()) { unlock(); if (startReady) doStart(); return; }
   unlock();
   const wasHeld = boardHeld; boardHeld = false;
-  if (paused) unpause();
+  if (paused) { if (!resumeHere()) unpause(); }
   else if (wasHeld && !speaking) { if (silentMode) pump(); else autoFlip(); }   // talking is over: the figures carry on flipping
   readyWhilePaused = false; studyUI();
 };
@@ -1454,7 +1557,7 @@ function renderExplain(d){
 }
 
 
-$("again").onclick = () => { unlock(); if (lastAudio) playBuffer(lastAudio); else speak(); };
+$("again").onclick = () => { unlock(); if (lesson && lesson.type === "lecture" && groups.length) { if (voicePref === "mute") setVoicePref(lastVoice); playFromFig(0); } else if (lastAudio) playBuffer(lastAudio); else speak(); };
 
 async function speak(){
   if (!speech) return;
@@ -1577,12 +1680,14 @@ function playBuffer(a, offset){   // offset: start partway in (used when the spe
   tick();
 }
 // Long lectures are spoken in chunks so browsers don't cut off midway.
-function browserVoice(text){
+function browserVoice(text, base){
+  base = base || 0;
   if (voicePref === "mute") { finish(); return; }
   if (!("speechSynthesis" in window)) { onProgress(1); return; }
   stopVoice();
+  const part = base ? text.slice(base) : text;
   const chunks = []; const re = /[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g; let m, buf = "", bufStart = 0;
-  while ((m = re.exec(text))) {
+  while ((m = re.exec(part))) {
     if (!buf) bufStart = m.index;
     buf += m[0];
     if (buf.length > 180) { chunks.push({ text: buf, start: bufStart }); buf = ""; }
@@ -1592,8 +1697,8 @@ function browserVoice(text){
   chunks.forEach((c, idx) => {
     const u = new SpeechSynthesisUtterance(c.text);
     if (v) u.voice = v; u.rate = voiceRate(); u.pitch = pitchFor(v, 1.0);
-    u.onstart = () => { if (!started) { started = true; setSpeaking(true); onProgress(0); startEstimate(text.length, u.rate); } else if (!lastBoundary || Date.now() - lastBoundary > 1500) { estStart = Date.now() - c.start / (14.5 * u.rate) * 1000; } };
-    u.onboundary = e => { lastBoundary = Date.now(); const ci = c.start + e.charIndex; highlight(ci); onProgress(ci / text.length); };
+    u.onstart = () => { if (!started) { started = true; setSpeaking(true); onProgress(base / text.length); startEstimate(text.length, u.rate, base); } else if (!lastBoundary || Date.now() - lastBoundary > 1500) { estStart = Date.now() - c.start / (14.5 * u.rate) * 1000; } };
+    u.onboundary = e => { lastBoundary = Date.now(); const ci = base + c.start + e.charIndex; highlight(ci); onProgress(ci / text.length); };
     if (idx === chunks.length - 1) u.onend = finish;
     speechSynthesis.speak(u);
   });
