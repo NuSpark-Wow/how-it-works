@@ -50,9 +50,10 @@ ACCURACY: Well-established facts only. Say so when something varies by model or 
 
 THE EXPLANATION ("answer"): EXACTLY 4 sections, in this order, with these exact headings:
 1. "The short answer": what it does and the core idea in a few sentences. (Shown with a CUTAWAY view.)
-2. "Take it apart": the main parts and what each one does. (Shown with an EXPLODED view of the parts.)
-3. "Step by step": what happens, in order, from start to finish. Number the steps in words (first, second, then, finally). (Shown with a STEP SEQUENCE.)
-4. "Examples in the real world": 3-5 specific, named places where this same technology or principle is working today, each with a sentence on what it does there. (Shown with a REAL-WORLD EXAMPLES map.)
+2. "Take it apart": the main parts (3 to 6 of them) and what each one does. Call each part by one short, clear name and use that same name every time. (Shown with an EXPLODED view of the parts; the screen labels exactly these parts.)
+3. "Step by step": what happens, in order, from start to finish, in 3 to 6 steps. Number the steps in words (first, second, third... finally), one step per sentence or two, so a listener can count them. (Shown with a STEP SEQUENCE; the screen draws exactly these steps in this order.)
+4. "Examples in the real world": 3-5 specific, named places where this same technology or principle is working today, each with a sentence on what it does there. (Shown with a REAL-WORLD EXAMPLES map; the screen draws exactly these places.)
+The order of parts and steps must be physically true: describe things in the order the water, air, power, fuel or signal really travels.
 Plain, engaging prose; no markdown, no bullet lists, no emojis (it is read aloud).
 
 OTHER FIELDS (lectures only):
@@ -74,7 +75,7 @@ THE 4 VIEWS, in this order:
 1. CUTAWAY: a cross-section or see-through view of the object or system with its insides visible and the key parts labeled with leader lines.
 2. TAKE IT APART: an exploded view: the main parts pulled apart along a line or arc, each one labeled, with dashed lines showing where they fit together.
 3. STEP BY STEP: a numbered sequence (3-6 steps) of boxes or small sketches joined by arrows, showing what happens in order. Number each step in a circle.
-4. EXAMPLES IN THE REAL WORLD: the same principle in 4-6 everyday places today. Each place is a simple recognizable outline ICON drawn with a few shapes (a car = body rect + 2 wheel circles; a phone = tall rounded rect + small circle; a drone = small body + 4 rotor circles; a washing machine = square + round door), never an empty box. Put the label under each icon. Arrange them in a ring around a center label, with short straight connector lines that stop 15px before each icon and the center.
+4. EXAMPLES IN THE REAL WORLD: the same principle in the places the narration names (3-5; if none are given, 4-5 everyday places today). Each place is a simple recognizable outline ICON drawn with a few shapes (a car = body rect + 2 wheel circles; a phone = tall rounded rect + small circle; a drone = small body + 4 rotor circles; a washing machine = square + round door), never an empty box. Put the label under each icon. Arrange them in a ring around a center label, with short straight connector lines that stop 15px before each icon and the center.
 
 Each figure has a "title" that starts with the view name (for example "Cutaway: inside an EV motor", "Take it apart: the five main parts", "Step by step: from battery to wheels", "Real-world examples: motors all around you"), a short "caption" (under 14 words), an "svg", and a "legend".
 LEGEND: list EVERY symbol, variable, unit abbreviation and math sign that appears in that figure's svg (for example V, A, kW, rpm, °C, +, −), each with a plain-English meaning. Use [] if there are none.
@@ -90,7 +91,11 @@ Each svg is SVG ELEMENTS ONLY (no <svg> wrapper) on an 800 wide x 500 tall near-
 - ROWS: anything stacked vertically keeps at least 20px of empty space between rows. Never put a box or pill on top of other words. Do not crowd the bottom of the board.
 - LABELS NEVER SIT ON A LINE: keep words at least 12px away from ground lines and box borders.
 - LINES NEVER CROSS TEXT: leader lines end 8px before the label starts; no line may pass through any label. Put labels in clear space to the right or left of the drawing, stacked with 34px between them.
-- STEP BY STEP layout: 3-6 steps in ONE clean left-to-right row (or 2 rows of 3, the second row also reading left to right). Each step: a numbered circle (r 18) above a box with a 1-3 word label, and a short caption line under the box. Straight arrows with small triangle arrowheads between boxes; arrows never cross boxes or circles.
+- STEP BY STEP layout: one step per step in the narration, same count, same order. 3 or 4 steps: ONE left-to-right row. 5 or 6 steps: 2 rows of 3, both reading left to right. Each step: a numbered circle (r 18) above a box with a 1-3 word label, and an optional caption line under the box. Straight arrows with small triangle arrowheads between boxes; arrows never cross boxes or circles.
+- STEP BOX SIZES: all step boxes are the same size, wide enough for the longest label using TEXT SIZE MATH (one row of 4: boxes about 150 wide; rows of 3: about 190 wide). Every label is ONE line that fits inside its box; if a label is too long, use a shorter word, never a second line and never text past the box edge. Captions under the boxes are under 16 characters or left out, so they never run into the next step.
+- STEP BY STEP spacing: use the whole board. One row sits in the middle (circles near y 170, boxes y 200-260, captions near y 290). Two rows: first row circles near y 90, second row circles near y 290. No big empty band at the top or bottom.
+- PHYSICALLY TRUE FLOW: any arrow for water, air, fuel, power, heat or a signal must follow the path it REALLY takes, in the real order. Example: in a dishwasher, dirty water drains DOWN through the filter into the sump, and only then does the pump push it UP to the spray arms (the filter comes before the pump, never after). An exploded view is stacked in the order the parts physically sit, which is not always the flow order: if a flow arrow would mislead on an exploded view, leave it off rather than draw it wrong. When unsure of the real path, show less, never something false.
+- MATCH THE NARRATION: the narrator reads this figure's section aloud while it is on screen. Use the same names the section uses for parts, steps and places, and do not add parts, steps or places it does not mention.
 - CUTAWAY and TAKE IT APART: draw the object as accurately as you can, with true proportions and the parts in their real places and real shapes, the way an engineering textbook shows it. Center it on the left two-thirds; labels in a neat column on the right third (x 560-780, text-anchor='start'), in the same top-to-bottom order as the parts they name so leader lines never cross each other. Each leader line runs from a small dot (r 3) ON the part to 8px short of its label. EVERY label has a leader line, and every leader line ends on the part it names.
 - Every symbol, color or shape that stands for something has its own label or appears in the legend; never leave a symbol unexplained. Two labels never touch or stack closer than 34px.
 - Before you finish each figure, check: is every label's line touching the right part? Does any text run past x 20 or x 780? Does any line cross any text? Fix these first.
@@ -206,7 +211,7 @@ function parseBlock(block) {
 }
 
 // Streams drawing steps to the page as newline-separated JSON, one finished step per line.
-async function streamBoard(res, isGet, user, maxSteps, kidsLimits) {
+async function streamBoard(res, isGet, user, maxSteps, kidsLimits, views, paras) {
   let wrote = false, count = 0, text = "", lastErr = null, none = false;
   const start = () => {
     if (wrote) return; wrote = true;
@@ -229,18 +234,28 @@ async function streamBoard(res, isGet, user, maxSteps, kidsLimits) {
   // each is ready. The detailed views (cutaway, take it apart) use the stronger model; the simpler ones
   // (step by step, real-world examples) use the fast model, so they are ready quickly.
   const VIEWS = ["Cutaway", "Take it apart", "Step by step", "Real-world examples"];
-  const n = Math.min(maxSteps, 4);
+  const MATCH = [
+    "Label the parts this section mentions, using the same names.",
+    "Show and label exactly the parts this section names (same names, same number), and no others.",
+    "Draw exactly one numbered step for each step in this section: same number of steps, same order. Each box label is 1-3 words taken from that step's own words, so step N on screen is step N in the narration.",
+    "Draw exactly the places this section names, one icon each, labeled with the same names."
+  ];
+  // which of the 4 views this request draws (the page asks for the cutaway early, and the rest once the words are written)
+  const want = (Array.isArray(views) && views.length ? views : [0, 1, 2, 3]).filter(k => k >= 0 && k < Math.min(maxSteps, 4));
+  const n = want.length;
   const results = new Array(n).fill(undefined); let next = 0;
   const emit = () => {
     while (next < n && results[next] !== undefined) {
-      const step = results[next]; next++;
-      if (!step || !step.svg) continue;
+      const step = results[next], view = want[next]; next++;
+      if (!step || !step.svg) { start(); res.write(JSON.stringify({ skip: true, view }) + "\n"); continue; }   // tells the page to move past it
       if (kidsLimits) { step.legend = step.legend.slice(0, 8); step.formulas = step.formulas.slice(0, 3); delete step.title; }
+      step.view = view;
       start(); res.write(JSON.stringify(step) + "\n"); count++;
     }
   };
   const drawOne = async k => {
-    const one = `${user}\n\nDraw ONLY figure ${k + 1} of ${n}: the ${VIEWS[k]} view. Write exactly one === STEP block for it and nothing else.`;
+    const sec = paras && paras[k] ? `\nThis figure goes with section ${k + 1}, which the narrator reads aloud while it is on screen:\n"${paras[k]}"\n${MATCH[k]}` : "";
+    const one = `${user}\n\nDraw ONLY figure ${k + 1} of 4: the ${VIEWS[k]} view.${sec}\nWrite exactly one === STEP block for it and nothing else.`;
     const model = k < 2 ? BOARD_MODEL : "claude-haiku-5-5";
     for (let attempt = 0; attempt < 2; attempt++) {
       let t = "";
@@ -254,7 +269,7 @@ async function streamBoard(res, isGet, user, maxSteps, kidsLimits) {
     }
     return null;
   };
-  await Promise.all(Array.from({ length: n }, (_, k) => drawOne(k).then(step => { results[k] = step; if (!none) emit(); })));
+  await Promise.all(want.map((k, i) => drawOne(k).then(step => { results[i] = step; if (!none) emit(); })));
   if (wrote) { res.write(JSON.stringify({ done: true }) + "\n"); return res.end(); }
   if (none || !lastErr) {
     res.setHeader("Cache-Control", isGet && none ? "public, s-maxage=2592000" : "no-store");
@@ -400,6 +415,7 @@ module.exports = async (req, res) => {
   const prev = isGet ? "" : String(src.prev || "").slice(0, 3000);
   // the figures request carries the lecture, one section per line, so each figure matches a section
   const paras = String(src.a || "").split("\n").map(x => x.trim()).filter(Boolean).slice(0, 5).map(x => x.slice(0, 900));
+  const views = String(src.views || "").split(",").map(x => parseInt(x, 10)).filter(k => k >= 0 && k <= 3);
   // optional picture (POST only): explained, never saved
   const image = isGet ? "" : String(src.image || "");
   if (image && (image.length > 4000000 || !/^[A-Za-z0-9+/=]+$/.test(image.slice(0, 200)))) return send(400, { error: "bad_image" });
@@ -439,7 +455,7 @@ module.exports = async (req, res) => {
     if (paras.length) {
       user += `\n\nThe lecture, section by section:\n${paras.map((x, i) => `${i + 1}. ${x}`).join("\n")}\n\nDraw EXACTLY ${paras.length} figures, one per section, in the same order, using the 4 views in order (Cutaway, Take it apart, Step by step, Real-world examples). Figure k must illustrate section k, so the screen changes as the narrator talks. Start each title with its view name.`;
     }
-    return streamBoard(res, isGet, user, paras.length || 4, false);
+    return streamBoard(res, isGet, user, paras.length || 4, false, views, paras);
   }
 
   let lec;
