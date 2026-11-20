@@ -491,7 +491,7 @@ let depth = "quick", chosenLevel = "quick", course = null;
 // One timeline: every section of the words belongs to one picture, and the voice and the screen always use this map
 let paraFig = [], paraEls = [];
 const DEBUG = /[?&]debug=1\b/.test(location.search);
-const VIEW_RE = [/cutaway|inside|overview|big picture|what it is/i, /apart|parts|components|pieces|anatomy/i, /step/i, /real|example|world|where you|today|uses/i];
+const VIEW_RE = [/short answer|cutaway|inside|overview|big picture|what it is/i, /apart|parts|components|pieces|anatomy/i, /step/i, /real|example|world|where you|today|uses/i];
 function mapParas(parts){
   const kw = parts.map(x => { const h = String(x.heading || ""); for (let v = 0; v < VIEW_RE.length; v++) if (VIEW_RE[v].test(h)) return v; return -1; });
   if (kw.every(v => v < 0)) return parts.map((x, i) => i);
@@ -832,7 +832,7 @@ function toBoard(){
 const norm = s => s.toLowerCase().replace(/[?!.,]+/g, " ").replace(/\s+/g, " ").trim();
 async function fetchPart(part, question, context, opts){
   let r;
-  if (!context && !opts.more && !opts.image) r = await fetch(`/api/ask?part=${part}&depth=${depth}&v=6&q=${encodeURIComponent(norm(question))}`);
+  if (!context && !opts.more && !opts.image) r = await fetch(`/api/ask?part=${part}&depth=${depth}&v=7&q=${encodeURIComponent(norm(question))}`);
   else r = await fetch("/api/ask", { method:"POST", headers:{ "content-type":"application/json" },
     body: JSON.stringify({ part, question, depth, context: context || "", more: !!opts.more, prev: opts.prev || "", image: opts.image || "" }) });
   const d = await r.json().catch(() => null);
@@ -841,14 +841,16 @@ async function fetchPart(part, question, context, opts){
 // Reads the figures as they stream in: one finished figure per line, shown right away.
 async function streamBoard(question, context, opts, a, onFig){
   let r;
-  if (!context && !opts.more && !opts.boardTitle) r = await fetch(`/api/ask?part=board&depth=${depth}&v=6&q=${encodeURIComponent(norm(question))}&a=${encodeURIComponent(a)}`);
+  const views = opts.views || "0,1,2,3";
+  if (!context && !opts.more && !opts.boardTitle) r = await fetch(`/api/ask?part=board&depth=${depth}&v=7&views=${views}&q=${encodeURIComponent(norm(question))}&a=${encodeURIComponent(a)}`);
   else r = await fetch("/api/ask", { method:"POST", headers:{ "content-type":"application/json" },
-    body: JSON.stringify({ part: "board", question, depth, context: context || opts.boardTitle || "", more: !!opts.more, prev: opts.prev || "", a }) });
+    body: JSON.stringify({ part: "board", question, depth, context: context || opts.boardTitle || "", more: !!opts.more, prev: opts.prev || "", a, views }) });
   if (!r.ok) throw new Error("H" + r.status);
   let n = 0, buf = "";
   const handle = line => {
     if (!line.trim()) return;
     let o; try { o = JSON.parse(line); } catch(e) { return; }
+    if (o.skip && Number.isInteger(o.view)) { onFig(o); return; }   // that picture couldn't be drawn: move past it
     if (Array.isArray(o.figures)) o.figures.forEach(f => { n++; onFig(f); });
     else if (Array.isArray(o.steps)) o.steps.forEach(f => { n++; onFig(f); });
     else if (o.svg !== undefined) { n++; onFig(o); }
@@ -1057,7 +1059,7 @@ async function ask(text, context, opts){
   let early = null;
   if (!context && !opts.more && !opts.image) {
     early = { figs: [], live: null, n: 0 };
-    early.p = streamBoard(question, "", {}, "", f => { if (my !== reqId) return; if (early.live) early.live(f); else early.figs.push(f); })
+    early.p = streamBoard(question, "", { views: "0" }, "", f => { if (my !== reqId) return; if (early.live) early.live(f); else early.figs.push(f); })
       .then(n => { early.n = n; return n; }).catch(() => 0);
   }
   let data = null, reason = "N0";
@@ -1096,17 +1098,29 @@ async function ask(text, context, opts){
   if (!silentMode) narrTimer = setTimeout(startNarration, 45000);   // safety valve if a figure is slow
   const parts = (data.answer || []).map(x => typeof x === "string" ? { heading: "", text: x } : x);
   const a = parts.map(x => ((x.heading ? x.heading + ": " : "") + (x.text || "")).trim()).filter(Boolean).slice(0, 5).map(x => x.slice(0, 900)).join("\n");
+  // Pictures go on screen in order (Cutaway, Take it apart, Step by step, Examples), however fast each one arrives.
+  // Pictures 2-4 are drawn from the finished words, so the parts, steps and places on screen are the ones the voice names.
   let total = 0;
-  if (early) {
-    // show what has already been drawn, then the rest as it arrives
-    const add = f => { if (my === reqId && !boardOff) addFig(f); };
-    early.figs.forEach(add); early.live = add;
-    total = await early.p;
+  const slots = {}; let nextV = 0;
+  const place = f => {
+    if (my !== reqId || boardOff) return;
+    const v = Number.isInteger(f.view) ? f.view : nextV + Object.keys(slots).length;
+    slots[v] = f;
+    while (slots[nextV] !== undefined) { const g = slots[nextV]; delete slots[nextV]; nextV++; addFig(g.skip ? missingFig(g.view) : g); }
+  };
+  const flushAll = () => Object.keys(slots).map(Number).sort((x, y) => x - y).forEach(v => { const g = slots[v]; delete slots[v]; if (my === reqId && !boardOff) addFig(g.skip ? missingFig(g.view) : g); });
+  if (early) { early.figs.forEach(place); early.live = place; }
+  const later = streamBoard(question, context, Object.assign({}, opts, { views: early ? "1,2,3" : "0,1,2,3" }), a, place).catch(() => 0);
+  const got = await Promise.all([early ? early.p : Promise.resolve(0), later]);
+  total = got[0] + got[1];
+  if (my === reqId && early && nextV === 0 && !groups.length) {   // the early cutaway didn't come: draw it now from the words
+    try { total += await streamBoard(question, context, Object.assign({}, opts, { views: "0" }), a, place); } catch(e) {}
   }
-  for (let k = 0; k < 2 && total === 0 && my === reqId; k++) {
-    try { total += await streamBoard(question, context, opts, a, f => { if (my === reqId && !boardOff) addFig(f); }); }
+  for (let k = 0; k < 1 && total === 0 && my === reqId; k++) {
+    try { total += await streamBoard(question, context, Object.assign({}, opts, { views: "0,1,2,3" }), a, place); }
     catch(e) {}
   }
+  flushAll();
   if (my !== reqId) return;
   boardDone = true; $("thinking").classList.remove("on"); paintBadges();
   if (!total && !groups.length) { boardOff = true; figs = [{ title: "", caption: "", svg: blankCard() }]; buildBoard(figs); showFigure(0); }
@@ -1171,6 +1185,12 @@ function render(opts){
   else audioP = prepareAudio();   // fetch the voice now so it's ready when Fig. 1 lands
 }
 
+// A picture that couldn't be drawn keeps its place, so Picture 3 is still the Step by step picture
+function missingFig(v){
+  const name = ["Cutaway", "Take it apart", "Step by step", "Real-world examples"][v] || "Picture";
+  return { view: v, title: name, caption: "This picture didn't draw. The words still explain it.",
+    svg: "<text x='400' y='230' text-anchor='middle' font-family='Inter' font-weight='800' font-size='30' fill='#5eead4'>" + name + "</text><text x='400' y='280' text-anchor='middle' font-family='Inter' font-size='22' fill='#c9d4df'>This picture didn't draw this time. Listen along below.</text>" };
+}
 function blankCard(){
   return "<circle cx='400' cy='220' r='90' fill='none' stroke='#5eead4' stroke-width='4'/><text x='400' y='255' text-anchor='middle' font-family='Inter' font-weight='800' font-size='96' fill='#5eead4'>?</text><text x='400' y='400' text-anchor='middle' font-family='Inter' font-size='32' fill='#ffffff'>What do you want to see inside?</text>";
 }
