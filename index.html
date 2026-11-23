@@ -441,6 +441,8 @@ button{font-family:inherit;cursor:pointer}
       <div class="card img-card hide" id="imgCard"><h3>The real thing</h3><img id="img" alt=""><p class="credit" id="credit"></p></div>
       <div class="card fact hide" id="factCard"><h3>Didja Know?</h3><p id="fact"></p></div>
       <div class="card myth hide" id="mythCard"><h3>Common misconception</h3><p id="myth"></p></div>
+      <div class="card fact hide" id="whereCard"><h3>Where You'll Find It</h3><ul id="whereList" style="margin:6px 0 0;padding-left:20px;line-height:1.5"></ul></div>
+      <div class="card myth hide" id="brokeCard"><h3>What If It Broke?</h3><p id="broke"></p><p style="margin:8px 0 0;font-size:.9em"><a href="https://nusparklearnwow.com/fix-it-clean-it-maintain-it/" target="_top" style="color:inherit;text-decoration:underline">Learn how to fix, clean and maintain things in Fix It. Clean It. Maintain It. →</a></p></div>
     </div>
   </div>
 
@@ -1168,12 +1170,14 @@ function render(opts){
 
   if (!isLec) { boardOff = true; clearTimeout(pumpTimer); figs = []; buildBoard([{ title: "", caption: L.type === "help" ? "You matter." : "Ask another question.", svg: blankCard() }]); showFigure(0); }
 
-  ["side","termsCard","imgCard","factCard","mythCard","deepCard"].forEach(id => $(id).classList.add("hide"));
+  ["side","termsCard","imgCard","factCard","mythCard","whereCard","brokeCard","deepCard"].forEach(id => $(id).classList.add("hide"));
   if (isLec) {
     const tb = $("terms"); tb.innerHTML = "";
     (L.terms || []).forEach(x => { if (!x || !x.word) return; const d = document.createElement("div"); d.innerHTML = "<b></b>: <span></span>"; d.querySelector("b").textContent = x.word; d.querySelector("span").textContent = x.meaning || ""; tb.appendChild(d); });
     if (tb.children.length) { $("termsCard").classList.remove("hide"); $("side").classList.remove("hide"); }
     if (L.surprising) { $("fact").textContent = L.surprising; $("factCard").classList.remove("hide"); $("side").classList.remove("hide"); }
+    if (Array.isArray(L.where_found) && L.where_found.length) { $("whereList").innerHTML = ""; L.where_found.slice(0, 3).forEach(x => { const li = document.createElement("li"); li.textContent = String(x); $("whereList").appendChild(li); }); $("whereCard").classList.remove("hide"); $("side").classList.remove("hide"); }
+    if (L.if_broke) { $("broke").textContent = L.if_broke; $("brokeCard").classList.remove("hide"); $("side").classList.remove("hide"); }
     if (L.misconception) { $("myth").textContent = L.misconception; $("mythCard").classList.remove("hide"); $("side").classList.remove("hide"); }
     if (L.image_query) loadImage(L.image_query);
 

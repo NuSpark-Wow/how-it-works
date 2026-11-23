@@ -62,6 +62,8 @@ OTHER FIELDS (lectures only):
 - "misconception": one common misconception and the truth (1-2 sentences), or "".
 - "image_query": 2-4 plain, literal search words for a real photo of the thing, or "" if a photo would not help.
 - "deeper": exactly 3 smart follow-up how-it-works questions.
+- "where_found": "Where You'll Find It": exactly 3 everyday places this technology hides in daily life, each a short phrase (under 12 words) naming the place and how it is used there (for example "In your phone: GPS pins your spot on the map"). Real, well-known uses only.
+- "if_broke": "What If It Broke?": 2-3 plain sentences on which part usually fails or wears out first, why it fails, and the first sign you would notice. General knowledge only; no repair steps, no safety-risky advice.
 
 For redirect, decline: fill only type, title, answer.
 
@@ -126,6 +128,7 @@ const LECTURE_TOOL = {
     answer: { type: "array", items: { type: "object", properties: { heading: { type: "string" }, text: { type: "string" } } } },
     terms: { type: "array", items: { type: "object", properties: { word: { type: "string" }, meaning: { type: "string" } } } },
     surprising: { type: "string" }, misconception: { type: "string" }, image_query: { type: "string" },
+    where_found: { type: "array", items: { type: "string" } }, if_broke: { type: "string" },
     deeper: { type: "array", items: { type: "string" } }
   }, required: ["type", "title", "answer"] }
 };
@@ -465,7 +468,7 @@ module.exports = async (req, res) => {
   ] : user;
   try {
     lec = await withRetry(async () => {
-      const j = normalize(await callTool(SYSTEM_LECTURE, LECTURE_TOOL, content, 4000, x => Array.isArray(x.answer)));
+      const j = normalize(await callTool(SYSTEM_LECTURE, LECTURE_TOOL, content, 5000, x => Array.isArray(x.answer)));
       if (!j) throw new Error("bad_shape");
       return j;
     }, 30000);
